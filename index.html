@@ -1,1 +1,1371 @@
+<!DOCTYPE html>
 
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Menu Planner">
+<title>Week Menu Planner 🌿</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sage:      #7C9E7A;
+  --sage-dk:   #4A7048;
+  --sage-lt:   #EEF4ED;
+  --sage-mid:  #C8DEC6;
+  --cream:     #FAF7F2;
+  --warm:      #F0EBE1;
+  --text:      #2C2C2C;
+  --text-lt:   #6B6B6B;
+  --border:    #DDD8CE;
+  --white:     #FFFFFF;
+  --red:       #C0392B;
+  --red-lt:    #FDE8E6;
+  --amber:     #D4770E;
+  --amber-lt:  #FEF3E2;
+  --blue:      #2E6B9E;
+  --blue-lt:   #E3EFF8;
+  --radius:    14px;
+  --shadow:    0 2px 16px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.14);
+}
+
+- { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:‘DM Sans’, sans-serif; background:var(–cream); color:var(–text); min-height:100vh; }
+  h1,h2,h3 { font-family:‘Playfair Display’, serif; }
+
+/* ── LOADING ──────────────────────────────────────────────────────── */
+#loadingOverlay {
+position:fixed; inset:0; background:var(–sage-dk);
+display:flex; align-items:center; justify-content:center;
+flex-direction:column; gap:20px; color:white; z-index:9999;
+}
+.loading-logo { font-size:52px; animation: breathe 2s ease-in-out infinite; }
+@keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+.loading-text { font-family:‘Playfair Display’,serif; font-size:22px; opacity:0.9; }
+.loading-sub  { font-size:13px; opacity:0.6; }
+.spinner { width:32px; height:32px; border:3px solid rgba(255,255,255,0.3); border-top-color:white; border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── LOGIN ────────────────────────────────────────────────────────── */
+#loginScreen {
+display:none; min-height:100vh; align-items:center; justify-content:center;
+background:linear-gradient(160deg, var(–sage-dk) 0%, #2D5230 60%, #1A3A1C 100%);
+padding:20px; position:relative; overflow:hidden;
+}
+#loginScreen::before {
+content:’’; position:absolute; inset:0;
+background: radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.05) 0%, transparent 60%),
+radial-gradient(ellipse at 80% 20%, rgba(255,255,255,0.04) 0%, transparent 50%);
+}
+.login-card {
+background:var(–white); border-radius:24px; padding:40px 32px;
+width:100%; max-width:400px; box-shadow:var(–shadow-lg);
+position:relative; z-index:1;
+}
+.login-logo { font-size:56px; margin-bottom:16px; display:block; text-align:center; }
+.login-title { font-family:‘Playfair Display’,serif; font-size:28px; color:var(–sage-dk); text-align:center; margin-bottom:6px; }
+.login-sub { font-size:14px; color:var(–text-lt); text-align:center; margin-bottom:32px; line-height:1.5; }
+.login-input {
+width:100%; padding:14px 16px; border:2px solid var(–border);
+border-radius:12px; font-size:16px; font-family:inherit;
+margin-bottom:14px; background:var(–cream); transition:border-color .2s;
+}
+.login-input:focus { outline:none; border-color:var(–sage); }
+.login-btn {
+width:100%; padding:15px; background:var(–sage-dk); color:white;
+border:none; border-radius:12px; font-size:15px; font-weight:600;
+cursor:pointer; transition:all .2s; font-family:inherit; letter-spacing:0.3px;
+}
+.login-btn:hover:not(:disabled) { background:#3A5F38; transform:translateY(-1px); box-shadow:0 4px 16px rgba(74,112,72,0.4); }
+.login-btn:disabled { opacity:0.6; cursor:not-allowed; }
+.login-msg { font-size:13px; margin-top:12px; text-align:center; line-height:1.5; color:var(–text-lt); }
+.login-msg.success { color:var(–sage-dk); font-weight:500; }
+.login-msg.error   { color:var(–red); }
+
+/* ── APP SHELL ────────────────────────────────────────────────────── */
+#appScreen { display:none; }
+
+.header {
+background:var(–sage-dk); color:white;
+padding:16px 20px 12px; position:sticky; top:0; z-index:100;
+box-shadow:0 2px 12px rgba(0,0,0,0.15);
+}
+.header-inner { max-width:900px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.header-brand { display:flex; align-items:center; gap:10px; }
+.header-brand h1 { font-size:20px; font-weight:700; line-height:1.1; }
+.header-brand p  { font-size:11px; opacity:0.7; margin-top:2px; }
+.header-right { display:flex; align-items:center; gap:10px; }
+.save-badge { font-size:11px; opacity:0.75; }
+.icon-btn {
+background:rgba(255,255,255,0.15); border:none; color:white;
+padding:8px 14px; border-radius:10px; font-size:12px; font-weight:600;
+cursor:pointer; transition:all .2s; font-family:inherit;
+}
+.icon-btn:hover { background:rgba(255,255,255,0.25); }
+
+/* ── TABS ─────────────────────────────────────────────────────────── */
+.tab-bar {
+background:var(–white); border-bottom:1px solid var(–border);
+overflow-x:auto; -webkit-overflow-scrolling:touch; display:flex;
+position:sticky; top:58px; z-index:99;
+}
+.tab-bar::-webkit-scrollbar { display:none; }
+.tab {
+padding:12px 16px; border:none; background:none; font-family:inherit;
+font-size:12px; font-weight:600; color:var(–text-lt); white-space:nowrap;
+flex-shrink:0; cursor:pointer; border-bottom:3px solid transparent;
+transition:all .2s; position:relative;
+}
+.tab:hover  { color:var(–sage-dk); }
+.tab.active { color:var(–sage-dk); border-bottom-color:var(–sage-dk); }
+
+/* ── PAGE WRAPPER ─────────────────────────────────────────────────── */
+.tab-content { display:none; }
+.tab-content.active { display:block; animation:fadeUp .25s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.page { max-width:900px; margin:0 auto; padding:20px 16px 80px; }
+
+/* ── CARDS ────────────────────────────────────────────────────────── */
+.recipe-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px; margin-bottom:24px; }
+.card {
+background:var(–white); border:1.5px solid var(–border); border-radius:var(–radius);
+padding:14px; transition:all .2s; cursor:default;
+}
+.card:hover { border-color:var(–sage); box-shadow:0 4px 16px rgba(124,158,122,0.15); transform:translateY(-2px); }
+.card.in-week { background:var(–sage-lt); border-color:var(–sage); }
+.card-header { margin-bottom:8px; }
+.card-name  { font-family:‘Playfair Display’,serif; font-size:14px; font-weight:700; color:var(–text); line-height:1.3; margin-bottom:3px; }
+.card-meta  { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+.chip { display:inline-flex; align-items:center; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:600; }
+.chip-time    { background:var(–warm); color:var(–text-lt); }
+.chip-type-vis  { background:var(–blue-lt); color:var(–blue); }
+.chip-type-vlees{ background:var(–red-lt); color:var(–red); }
+.chip-type-veg  { background:var(–sage-lt); color:var(–sage-dk); }
+.chip-season { background:var(–warm); color:var(–amber); }
+.day-badge  { display:inline-block; padding:3px 9px; background:var(–sage-dk); color:white; border-radius:6px; font-size:10px; font-weight:600; margin-bottom:8px; }
+
+/* Nutrition mini bar */
+.nut-row { display:flex; gap:4px; margin-bottom:10px; }
+.nut { flex:1; text-align:center; padding:4px 2px; border-radius:6px; background:var(–cream); }
+.nut-v { font-size:11px; font-weight:700; }
+.nut-l { font-size:9px; color:var(–text-lt); margin-top:1px; }
+.nut.kcal .nut-v { color:var(–sage-dk); }
+.nut.prot .nut-v { color:#2E7D32; }
+.nut.carb .nut-v { color:var(–amber); }
+.nut.fat  .nut-v { color:var(–red); }
+
+/* Ratings */
+.rating-row { display:flex; gap:6px; margin-bottom:8px; }
+.rate-btn { padding:5px 10px; border:1.5px solid var(–border); background:var(–white); border-radius:8px; cursor:pointer; font-size:13px; transition:all .2s; }
+.rate-btn.up.active   { background:#E8F5E9; border-color:#4CAF50; }
+.rate-btn.down.active { background:var(–red-lt); border-color:var(–red); }
+.comment-box  { width:100%; padding:6px 8px; border:1.5px solid var(–border); border-radius:8px; font-size:11px; font-family:inherit; margin-bottom:8px; background:var(–cream); resize:none; }
+.comment-box:focus { outline:none; border-color:var(–sage); }
+.comment-text { font-size:10px; color:var(–text-lt); font-style:italic; padding:5px 8px; background:var(–warm); border-radius:6px; margin-bottom:8px; line-height:1.4; }
+.card-actions { display:flex; gap:6px; flex-wrap:wrap; }
+
+/* Buttons */
+.btn { padding:7px 11px; border:none; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; transition:all .2s; display:inline-flex; align-items:center; gap:4px; font-family:inherit; }
+.btn-primary  { background:var(–sage-dk); color:white; }
+.btn-primary:hover { background:#3A5F38; }
+.btn-danger   { background:var(–red); color:white; }
+.btn-danger:hover  { background:#A93226; }
+.btn-ghost    { background:var(–cream); color:var(–text); border:1.5px solid var(–border); }
+.btn-ghost:hover { border-color:var(–sage); color:var(–sage-dk); }
+.btn-amber    { background:var(–amber); color:white; }
+.btn-amber:hover { opacity:0.9; }
+.btn-lg { padding:12px 20px; font-size:13px; border-radius:12px; }
+.btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+/* ── DAY SELECT ───────────────────────────────────────────────────── */
+.day-select { width:100%; padding:7px 9px; border:1.5px solid var(–border); border-radius:8px; font-size:11px; font-family:inherit; background:var(–white); margin-top:6px; }
+.day-select:focus { outline:none; border-color:var(–sage); }
+
+/* ── HOME PAGE ────────────────────────────────────────────────────── */
+.week-banner {
+background:linear-gradient(135deg, var(–sage-dk), #3D6B3B);
+border-radius:var(–radius); padding:20px; margin-bottom:20px; color:white;
+display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+}
+.week-banner h2 { font-size:20px; margin-bottom:4px; }
+.week-banner p  { font-size:13px; opacity:0.8; }
+.section-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+.section-title { font-family:‘Playfair Display’,serif; font-size:18px; color:var(–text); }
+.season-pills { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+.season-pill {
+padding:5px 13px; border:1.5px solid var(–border); background:var(–white);
+border-radius:20px; font-size:11px; font-weight:600; cursor:pointer;
+transition:all .2s; color:var(–text-lt);
+}
+.season-pill.active { background:var(–sage-dk); border-color:var(–sage-dk); color:white; }
+.empty-state { text-align:center; padding:40px 20px; color:var(–text-lt); }
+.empty-icon  { font-size:44px; margin-bottom:10px; }
+
+/* ── RECIPE DETAIL ────────────────────────────────────────────────── */
+.recipe-detail { padding:20px; max-width:700px; margin:0 auto; }
+.recipe-detail h2 { font-size:24px; color:var(–text); margin-bottom:6px; line-height:1.3; }
+.recipe-detail-meta { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.nut-detail-row { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+.nd { flex:1; min-width:60px; padding:10px 8px; text-align:center; border-radius:10px; border:1.5px solid var(–border); }
+.nd-v { font-size:17px; font-weight:700; }
+.nd-l { font-size:10px; color:var(–text-lt); margin-top:2px; }
+.nd.kcal { border-color:var(–sage); } .nd.kcal .nd-v { color:var(–sage-dk); }
+.nd.prot { border-color:#4CAF50; } .nd.prot .nd-v { color:#2E7D32; }
+.nd.carb { border-color:var(–amber); } .nd.carb .nd-v { color:var(–amber); }
+.nd.fat  { border-color:var(–red); }  .nd.fat  .nd-v { color:var(–red); }
+.detail-section { margin-bottom:20px; }
+.detail-section h3 { font-size:13px; font-weight:600; color:var(–text-lt); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:10px; }
+.ing-list { list-style:none; }
+.ing-list li { padding:7px 0 7px 20px; position:relative; font-size:13px; border-bottom:1px solid var(–cream); color:var(–text); }
+.ing-list li::before { content:”•”; position:absolute; left:5px; color:var(–sage); font-weight:bold; }
+.step-list { list-style:none; counter-reset:sc; }
+.step-list li { padding:10px 0 10px 40px; position:relative; font-size:13px; border-bottom:1px solid var(–cream); color:var(–text); line-height:1.6; }
+.step-list li::before { counter-increment:sc; content:counter(sc); position:absolute; left:0; top:10px; background:var(–sage-dk); color:white; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; }
+.back-btn { display:inline-flex; align-items:center; gap:6px; margin-bottom:20px; color:var(–sage-dk); font-size:13px; font-weight:600; cursor:pointer; }
+.back-btn:hover { text-decoration:underline; }
+
+/* ── GROCERY LIST ─────────────────────────────────────────────────── */
+.grocery-actions { background:var(–white); padding:12px 16px; border-bottom:1px solid var(–border); display:flex; gap:8px; flex-wrap:wrap; position:sticky; top:96px; z-index:90; }
+.progress-wrap { margin-bottom:20px; }
+.progress-label { font-size:12px; color:var(–text-lt); margin-bottom:6px; }
+.progress-bar { height:6px; background:var(–border); border-radius:10px; overflow:hidden; }
+.progress-fill { height:100%; background:linear-gradient(90deg, var(–sage), var(–sage-dk)); transition:width .3s; }
+.grocery-cat { margin-bottom:24px; }
+.grocery-cat-title { font-family:‘Playfair Display’,serif; font-size:16px; color:var(–sage-dk); margin-bottom:10px; padding-bottom:8px; border-bottom:2px solid var(–sage-mid); display:flex; align-items:center; gap:8px; }
+.grocery-item { display:flex; align-items:center; padding:10px 12px; margin-bottom:4px; border-radius:10px; cursor:pointer; transition:all .2s; background:var(–white); border:1px solid transparent; }
+.grocery-item:hover { background:var(–cream); border-color:var(–border); }
+.grocery-item.checked { opacity:0.45; }
+.grocery-item.checked .grocery-item-text { text-decoration:line-through; color:var(–text-lt); }
+.grocery-checkbox { width:20px; height:20px; border:2px solid var(–border); border-radius:6px; margin-right:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; transition:all .2s; }
+.grocery-checkbox.checked { background:var(–sage-dk); border-color:var(–sage-dk); color:white; }
+.grocery-item-text { flex:1; font-size:13px; }
+
+/* ── RECIPE EDITOR ────────────────────────────────────────────────── */
+.editor-overlay {
+position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:500;
+display:none; align-items:flex-end; justify-content:center;
+}
+.editor-overlay.open { display:flex; animation:fadeIn .2s; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.editor-sheet {
+background:var(–white); border-radius:24px 24px 0 0; width:100%; max-width:680px;
+max-height:90vh; overflow-y:auto; padding:24px 20px 40px;
+animation:slideUp .3s ease;
+}
+@keyframes slideUp { from{transform:translateY(60px);opacity:0} to{transform:translateY(0);opacity:1} }
+.editor-handle { width:40px; height:4px; background:var(–border); border-radius:4px; margin:0 auto 20px; }
+.editor-title { font-family:‘Playfair Display’,serif; font-size:22px; margin-bottom:20px; color:var(–text); }
+.field { margin-bottom:14px; }
+.field label { display:block; font-size:11px; font-weight:600; color:var(–text-lt); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.6px; }
+.field input, .field textarea, .field select {
+width:100%; padding:10px 12px; border:1.5px solid var(–border);
+border-radius:10px; font-size:13px; font-family:inherit; background:var(–cream);
+transition:border-color .2s;
+}
+.field input:focus, .field textarea:focus, .field select:focus { outline:none; border-color:var(–sage); background:white; }
+.field textarea { resize:vertical; min-height:80px; }
+.field-row { display:flex; gap:10px; }
+.field-row .field { flex:1; }
+
+/* ── DAY PAGES ────────────────────────────────────────────────────── */
+.day-hero {
+background:linear-gradient(135deg, var(–sage-dk), #3A6038);
+border-radius:var(–radius); padding:20px; margin-bottom:20px; color:white;
+}
+.day-hero h2 { font-size:22px; margin-bottom:4px; }
+.day-hero p  { opacity:0.75; font-size:13px; }
+.day-empty { text-align:center; padding:40px 20px; color:var(–text-lt); background:var(–white); border-radius:var(–radius); border:2px dashed var(–border); }
+
+/* ── SETTINGS ─────────────────────────────────────────────────────── */
+.settings-block { background:var(–white); border-radius:var(–radius); padding:18px; margin-bottom:16px; border:1px solid var(–border); }
+.settings-block h3 { font-size:15px; margin-bottom:14px; color:var(–text); display:flex; align-items:center; gap:8px; }
+.toggle-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; }
+.toggle-label { font-size:13px; font-weight:500; }
+.toggle-desc  { font-size:11px; color:var(–text-lt); margin-top:2px; }
+.toggle { position:relative; width:44px; height:26px; flex-shrink:0; }
+.toggle input { opacity:0; width:0; height:0; }
+.toggle-slider { position:absolute; cursor:pointer; inset:0; background:var(–border); border-radius:26px; transition:.3s; }
+.toggle-slider:before { position:absolute; content:””; height:20px; width:20px; left:3px; bottom:3px; background:white; border-radius:50%; transition:.3s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+.toggle input:checked + .toggle-slider { background:var(–sage-dk); }
+.toggle input:checked + .toggle-slider:before { transform:translateX(18px); }
+.tags-wrap { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+.tag { display:inline-flex; align-items:center; gap:4px; padding:5px 10px; background:var(–sage-lt); color:var(–sage-dk); border-radius:20px; font-size:11px; font-weight:600; border:1px solid var(–sage-mid); }
+.tag .remove-tag { cursor:pointer; opacity:0.6; font-size:14px; line-height:1; }
+.tag.avoid-tag    { background:var(–red-lt); color:var(–red); border-color:rgba(192,57,43,0.2); }
+.tag.allergy-tag  { background:var(–amber-lt); color:var(–amber); border-color:rgba(212,119,14,0.2); }
+.tag-input-row { display:flex; gap:8px; }
+.tag-input-row input { flex:1; }
+.tag-input-row button { padding:9px 14px; background:var(–sage-dk); color:white; border:none; border-radius:10px; cursor:pointer; font-size:13px; font-weight:700; font-family:inherit; }
+.save-main-btn {
+width:100%; padding:14px; background:var(–sage-dk); color:white;
+border:none; border-radius:12px; font-size:15px; font-weight:600;
+cursor:pointer; transition:all .2s; font-family:inherit;
+margin-top:8px;
+}
+.save-main-btn:hover { background:#3A5F38; transform:translateY(-1px); box-shadow:0 4px 16px rgba(74,112,72,0.35); }
+
+/* ── NOTIFICATION ─────────────────────────────────────────────────── */
+.notif {
+position:fixed; top:16px; left:50%; transform:translateX(-50%);
+background:var(–sage-dk); color:white; padding:12px 24px;
+border-radius:50px; font-size:13px; font-weight:600;
+box-shadow:var(–shadow-lg); display:none; z-index:9999;
+white-space:nowrap;
+}
+.notif.show  { display:block; animation:notifIn .3s ease; }
+.notif.error { background:var(–red); }
+@keyframes notifIn { from{opacity:0;top:0} to{opacity:1;top:16px} }
+.hidden { display:none!important; }
+
+/* ── REMIX BANNER ─────────────────────────────────────────────────── */
+.remix-bar {
+background:var(–amber-lt); border:1px solid rgba(212,119,14,0.25);
+border-radius:var(–radius); padding:14px 16px; margin-bottom:20px;
+display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+}
+.remix-bar p { font-size:13px; color:var(–amber); font-weight:500; }
+
+/* ── RECIPE EDIT MODAL ────────────────────────────────────────────── */
+.modal-bg {
+position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:600;
+display:none; align-items:center; justify-content:center; padding:16px;
+}
+.modal-bg.open { display:flex; }
+.modal {
+background:var(–white); border-radius:20px; width:100%; max-width:640px;
+max-height:90vh; overflow-y:auto; padding:24px;
+animation:slideUp .3s ease;
+}
+.modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.modal-header h2 { font-size:20px; color:var(–text); }
+.close-btn { width:32px; height:32px; border:none; background:var(–cream); border-radius:8px; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; }
+</style>
+
+</head>
+<body>
+
+<!-- LOADING -->
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-logo">🌿</div>
+  <div class="loading-text">Menu Planner</div>
+  <div class="loading-sub">Laden...</div>
+</div>
+
+<!-- LOGIN -->
+
+<div id="loginScreen" style="display:none">
+  <div class="login-card">
+    <span class="login-logo">🌿</span>
+    <div class="login-title">Menu Planner</div>
+    <div class="login-sub">Hormoonbalans & Borstvoeding<br>Gezond, snel en lekker</div>
+    <input type="email" class="login-input" id="loginEmail" placeholder="Jouw e-mailadres" autocomplete="email">
+    <button class="login-btn" id="loginBtn" onclick="sendMagicLink()">✉️ Stuur inloglink</button>
+    <div class="login-msg" id="loginMsg"></div>
+  </div>
+</div>
+
+<!-- APP -->
+
+<div id="appScreen">
+  <div class="header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <div>
+          <h1>🌿 Menu Planner</h1>
+          <p id="headerSub">Hormoonbalans & Borstvoeding</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <span class="save-badge" id="saveIndicator"></span>
+        <button class="icon-btn" onclick="logout()">Uitloggen</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-bar" id="tabBar">
+    <button class="tab active" onclick="showTab('home')">🏠 Home</button>
+    <button class="tab" onclick="showTab('favorieten')">⭐ Favorieten</button>
+    <button class="tab" onclick="showTab('boodschappen')">🛒 Boodschappen</button>
+    <button class="tab" onclick="showTab('recepten')">📖 Recepten</button>
+    <button class="tab" onclick="showTab('maandag')">Ma</button>
+    <button class="tab" onclick="showTab('dinsdag')">Di</button>
+    <button class="tab" onclick="showTab('woensdag')">Wo</button>
+    <button class="tab" onclick="showTab('donderdag')">Do</button>
+    <button class="tab" onclick="showTab('vrijdag')">Vr</button>
+    <button class="tab" onclick="showTab('zaterdag')">Za</button>
+    <button class="tab" onclick="showTab('zondag')">Zo</button>
+    <button class="tab" onclick="showTab('instellingen')">⚙️</button>
+  </div>
+
+  <!-- HOME -->
+
+  <div id="home" class="tab-content active">
+    <div class="page">
+      <div class="week-banner">
+        <div>
+          <h2>📅 Weekmenu</h2>
+          <p id="weekSub">Jouw maaltijden voor deze week</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-lg" style="background:rgba(255,255,255,0.2);color:white" onclick="remixWeek()">🔀 Remix week</button>
+          <button class="btn btn-lg" style="background:rgba(255,255,255,0.9);color:var(--sage-dk)" id="genBtn" onclick="generateRecipes()">✨ Genereer</button>
+        </div>
+      </div>
+      <div id="weekGrid" class="recipe-grid"></div>
+
+```
+  <div class="section-header">
+    <div class="section-title">💡 Suggesties</div>
+    <button class="btn btn-ghost" onclick="shuffleSuggestions()">🔄 Shuffle</button>
+  </div>
+  <div id="seasonPills" class="season-pills"></div>
+  <div id="suggestionsGrid" class="recipe-grid"></div>
+</div>
+```
+
+  </div>
+
+  <!-- FAVORIETEN -->
+
+  <div id="favorieten" class="tab-content">
+    <div class="page">
+      <div class="section-header">
+        <div class="section-title">⭐ Mijn Favorieten</div>
+      </div>
+      <div id="favGrid" class="recipe-grid"></div>
+    </div>
+  </div>
+
+  <!-- BOODSCHAPPEN -->
+
+  <div id="boodschappen" class="tab-content">
+    <div class="grocery-actions">
+      <button class="btn btn-primary" onclick="copyList()">📋 Kopieer</button>
+      <button class="btn btn-ghost" onclick="clearChecked()">🔄 Reset</button>
+      <button class="btn btn-ghost" onclick="checkAll()">✓ Alles af</button>
+    </div>
+    <div class="page">
+      <div class="progress-wrap">
+        <div class="progress-label" id="progTxt">0 van 0 afgevinkt</div>
+        <div class="progress-bar"><div class="progress-fill" id="progFill" style="width:0%"></div></div>
+      </div>
+      <div id="groceryCategories"></div>
+    </div>
+  </div>
+
+  <!-- RECEPTEN BEHEER -->
+
+  <div id="recepten" class="tab-content">
+    <div class="page">
+      <div class="section-header">
+        <div class="section-title">📖 Alle Recepten</div>
+        <button class="btn btn-primary" onclick="openEditor()">+ Nieuw recept</button>
+      </div>
+      <div id="allRecipesGrid" class="recipe-grid"></div>
+    </div>
+  </div>
+
+  <!-- DAG TABS -->
+
+  <div id="maandag"  class="tab-content"></div>
+  <div id="dinsdag"  class="tab-content"></div>
+  <div id="woensdag" class="tab-content"></div>
+  <div id="donderdag" class="tab-content"></div>
+  <div id="vrijdag"  class="tab-content"></div>
+  <div id="zaterdag" class="tab-content"></div>
+  <div id="zondag"   class="tab-content"></div>
+
+  <!-- INSTELLINGEN -->
+
+  <div id="instellingen" class="tab-content">
+    <div class="page">
+      <div class="settings-block">
+        <h3>👤 Profiel</h3>
+        <div class="field-row">
+          <div class="field"><label>Naam</label><input type="text" id="s-name" placeholder="Jouw naam"></div>
+          <div class="field"><label>Personen</label>
+            <select id="s-persons"><option value="1">1</option><option value="2" selected>2</option><option value="3">3</option><option value="4">4</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="settings-block">
+        <h3>🎯 Doelen</h3>
+        <div class="field"><label>Actieve doelen</label>
+          <div class="tags-wrap" id="goalTags"></div>
+          <div class="tag-input-row"><input type="text" id="goalInput" placeholder="Voeg doel toe..." onkeydown="if(event.key==='Enter')addTag('goal')"><button onclick="addTag('goal')">+</button></div>
+        </div>
+      </div>
+      <div class="settings-block">
+        <h3>🍽️ Eetvoorkeuren</h3>
+        <div class="field-row">
+          <div class="field"><label>Dieet</label>
+            <select id="s-diet"><option value="alles">Alles</option><option value="flexitarisch">Flexitarisch</option><option value="vegetarisch">Vegetarisch</option><option value="vegan">Vegan</option><option value="glutenvrij">Glutenvrij</option></select>
+          </div>
+          <div class="field"><label>Max bereidingstijd (min)</label><input type="number" id="s-maxtime" min="10" max="120" value="40"></div>
+        </div>
+        <div class="field"><label>Favoriete keuken</label>
+          <select id="s-cuisine"><option value="gemengd">Gemengd</option><option value="mediterraan">Mediterraan</option><option value="aziatisch">Aziatisch</option><option value="nederlands">Nederlands</option><option value="mexicaans">Mexicaans</option></select>
+        </div>
+      </div>
+      <div class="settings-block">
+        <h3>🌿 Seizoen</h3>
+        <div class="toggle-row">
+          <div><div class="toggle-label">Seizoensgebonden recepten</div><div class="toggle-desc">Filter op het huidige seizoen</div></div>
+          <label class="toggle"><input type="checkbox" id="s-seasonal" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="field" style="margin-top:10px"><label>Huidig seizoen</label>
+          <select id="s-season"><option value="auto">Automatisch</option><option value="lente">🌸 Lente</option><option value="zomer">☀️ Zomer</option><option value="herfst">🍂 Herfst</option><option value="winter">❄️ Winter</option></select>
+        </div>
+        <div class="toggle-row">
+          <div><div class="toggle-label">Voedingswaarden tonen</div></div>
+          <label class="toggle"><input type="checkbox" id="s-nutrition" checked><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+      <div class="settings-block">
+        <h3>🚫 Vermijden</h3>
+        <div class="field"><label>Niet lekker / vermijden</label>
+          <div class="tags-wrap" id="avoidTags"></div>
+          <div class="tag-input-row"><input type="text" id="avoidInput" placeholder="bijv. spruitjes..." onkeydown="if(event.key==='Enter')addTag('avoid')"><button onclick="addTag('avoid')">+</button></div>
+        </div>
+        <div class="field"><label>Allergieën</label>
+          <div class="tags-wrap" id="allergyTags"></div>
+          <div class="tag-input-row"><input type="text" id="allergyInput" placeholder="bijv. noten..." onkeydown="if(event.key==='Enter')addTag('allergy')"><button onclick="addTag('allergy')">+</button></div>
+        </div>
+      </div>
+      <div class="settings-block">
+        <h3>💊 Hormonen & Gezondheid</h3>
+        <div class="field"><label>Gezondheidsdoelen</label><textarea id="s-health" placeholder="bijv. oestrogeen/progesteron balans..."></textarea></div>
+        <div class="field"><label>Hormoonondersteunende ingrediënten</label>
+          <div class="tags-wrap" id="hormoneTags"></div>
+          <div class="tag-input-row"><input type="text" id="hormoneInput" placeholder="bijv. zalm, broccoli..." onkeydown="if(event.key==='Enter')addTag('hormone')"><button onclick="addTag('hormone')">+</button></div>
+        </div>
+      </div>
+      <div class="settings-block">
+        <h3>👩‍🍳 Receptstijl</h3>
+        <div class="field-row">
+          <div class="field"><label>Inspiratiebron</label><input type="text" id="s-style" placeholder="bijv. Miljuschka..."></div>
+          <div class="field"><label>Extra wensen</label><input type="text" id="s-extra" placeholder="bijv. weinig afwas..."></div>
+        </div>
+      </div>
+      <button class="save-main-btn" onclick="saveSettings()">💾 Instellingen opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECIPE EDITOR MODAL -->
+
+<div class="modal-bg" id="editorModal">
+  <div class="modal" id="editorSheet">
+    <div class="modal-header">
+      <h2 id="editorTitle">Nieuw recept</h2>
+      <button class="close-btn" onclick="closeEditor()">✕</button>
+    </div>
+    <div class="field-row">
+      <div class="field" style="flex:2"><label>Naam</label><input type="text" id="e-name" placeholder="Naam van het gerecht"></div>
+      <div class="field"><label>Tijd</label><input type="text" id="e-time" placeholder="25 min"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Type</label>
+        <select id="e-type"><option value="Vis">🐟 Vis</option><option value="Vlees">🍗 Vlees</option><option value="Vegetarisch">🥗 Vegetarisch</option></select>
+      </div>
+      <div class="field"><label>Seizoenen</label>
+        <select id="e-seasons" multiple style="height:auto">
+          <option value="lente" selected>🌸 Lente</option>
+          <option value="zomer" selected>☀️ Zomer</option>
+          <option value="herfst" selected>🍂 Herfst</option>
+          <option value="winter" selected>❄️ Winter</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Calorieën</label><input type="number" id="e-kcal" placeholder="500"></div>
+      <div class="field"><label>Eiwit (g)</label><input type="number" id="e-prot" placeholder="30"></div>
+      <div class="field"><label>Koolh. (g)</label><input type="number" id="e-carb" placeholder="45"></div>
+      <div class="field"><label>Vet (g)</label><input type="number" id="e-fat" placeholder="18"></div>
+    </div>
+    <div class="field"><label>Ingrediënten (voor 2 personen, 1 per regel)</label>
+      <textarea id="e-ingredients" rows="6" placeholder="2 zalmfilets&#10;150g quinoa&#10;1 broccoli&#10;..."></textarea>
+    </div>
+    <div class="field"><label>Bereidingsstappen (1 per regel)</label>
+      <textarea id="e-steps" rows="6" placeholder="Verwarm de oven op 180°C.&#10;Bak de zalm 4 min per kant.&#10;..."></textarea>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn btn-primary btn-lg" style="flex:1" onclick="saveRecipe()">💾 Opslaan</button>
+      <button class="btn btn-ghost btn-lg" id="deleteRecipeBtn" onclick="deleteRecipe()" style="display:none">🗑️ Verwijder</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFICATION -->
+
+<div class="notif" id="notif"></div>
+
+<script>
+// ─── SUPABASE ──────────────────────────────────────────────────────
+const SUPA_URL = 'https://zjechmjaxfipjiklbyyf.supabase.co';
+const SUPA_KEY = 'sb_publishable_Zh-oJvqBHcKbNBhVFmG4sw_jGgHa5on';
+const supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ─── CONSTANTS ────────────────────────────────────────────────────
+const DAYS    = ['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
+const DAY_IDS = ['maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag','zondag'];
+const SEASONS = ['lente','zomer','herfst','winter'];
+const SEASON_EMOJI = {lente:'🌸',zomer:'☀️',herfst:'🍂',winter:'❄️'};
+
+function detectSeason(){const m=new Date().getMonth();if(m>=2&&m<=4)return'lente';if(m>=5&&m<=7)return'zomer';if(m>=8&&m<=10)return'herfst';return'winter';}
+function getCurrentSeason(){const s=state.settings.season;return s==='auto'?detectSeason():s;}
+
+// ─── GROCERY CATEGORIES (Albert Heijn) ────────────────────────────
+const AH_CATEGORIES = {
+  '🥬 Groenten & Fruit':['broccoli','boerenkool','spinazie','champignon','paddenstoelen','wokgroenten','zoete aardappel','ui','sjalot','avocado','wortel','limoen','gember','dille','basilicum','rucola','koriander','knoflook','citroen','prei','asperge','venkel','pompoen','biet','koolrabi','paksoi','mais','erwt','edamame','courgette','paprika','bleekselderij','lente-ui','witlof','bloemkool','rode kool','komkommer','appel','mango','sinaasappel','granaatappel'],
+  '🥩 Eiwitten':['zalm','kip','ei','eieren','kikkererwten','garnalen','tonijn','kabeljauw','gehakt','makreel','lam','biefstuk','varkensvlees','paneer','linzen','rookworst','chorizo','falafel','ansjovis'],
+  '🧀 Zuivel':['feta','parmezaan','room','kookroom','slagroom','boter','kaas','yoghurt','melk','ricotta','geitenkaas','mozzarella','cheddar','crème fraîche','zure room'],
+  '🍚 Koolhydraten':['quinoa','gnocchi','noedels','pasta','rijst','risotto','brood','couscous','bulgur','havermout','crackers','wrap','pitabrood','naanbrood','spaghetti','linguine','orecchiette','orzo','vermicelli','soba','ramen','lasi'],
+  '🥫 Overig':['pesto','currypasta','kokosmelk','sojasaus','sesamolie','honing','olijfolie','sesamzaad','bouillon','nootmuskaat','zout','peper','walnoten','pijnboompit','kappertjes','olijven','chilivlokken','tahini','misopasta','hoisinsaus','teriyaki','passata','tomatenpuree','azijn','mosterd','chiazaad','lijnzaad','rozijnen','amandelen','pompoenpitten','hoisin','vissaus','gochujang','saffraan']
+};
+
+function categorizeIngredient(ing) {
+  const lower = ing.toLowerCase();
+  for (const [cat, keywords] of Object.entries(AH_CATEGORIES)) {
+    if (keywords.some(kw => lower.includes(kw))) return cat;
+  }
+  return '🥫 Overig';
+}
+
+// ─── BASE RECIPES (shortened for brevity — same as original) ──────
+const BASE_RECIPES = [
+  {id:'r1',name:'Groentebowl met zalm en quinoa',time:'25 min',type:'Vis',seasons:['lente','zomer','herfst','winter'],nutrition:{kcal:520,prot:38,carb:42,fat:18},ingredients:['2 zalmfilets','150g quinoa','1 broccoli (roosjes)','2 wortels (reepjes)','1 avocado (plakjes)','2 el olijfolie','1 citroen (sap)','Verse dille','Zout & peper'],steps:['Kook quinoa 15 min. Giet af.','Verwarm oven op 180°C. Dep zalm droog.','Bak zalm 15 min in oven.','Stoom broccoli 5 min; blancheer wortel 3 min.','Maak dressing van olijfolie, citroensap, dille.','Verdeel quinoa, leg groenten en avocado erbij. Leg zalm bovenop.']},
+  {id:'r2',name:'Romige gnocchi met spinazie en kip',time:'25 min',type:'Vlees',seasons:['herfst','winter','lente'],nutrition:{kcal:610,prot:42,carb:58,fat:22},ingredients:['500g gnocchi','2 kipfilets (blokjes)','200g spinazie','250g champignons (plakjes)','200ml kookroom','2 teentjes knoflook','50g Parmezaan','2 el olijfolie','Zout, peper, nootmuskaat'],steps:['Kook gnocchi, giet af.','Bak kip goudbruin (6-7 min). Opzij zetten.','Fruit knoflook. Voeg champignons toe, bak 5 min.','Voeg spinazie toe, laat slinken.','Giet room erbij, laat 2 min pruttelen.','Meng gnocchi en kip door saus. Bestrooi met Parmezaan.']},
+  {id:'r3',name:'Aziatische noedels met kip',time:'25 min',type:'Vlees',seasons:['lente','zomer','herfst','winter'],nutrition:{kcal:490,prot:36,carb:54,fat:14},ingredients:['2 kipfilets (reepjes)','200g udon noedels','300g wokgroenten','3 el sojasaus','2 el sesamolie','1 teen knoflook','1 el verse gember','1 el honing','Sesamzaadjes'],steps:['Kook noedels, afgieten en spoelen.','Bak kip 5-6 min in sesamolie.','Fruit knoflook en gember 30 sec.','Roerbak groenten 3-4 min.','Voeg noedels en kip toe.','Meng sojasaus met honing, giet erbij, roerbak 2 min. Garneer met sesamzaad.']},
+  {id:'r4',name:'Pasta pesto met broccoli',time:'20 min',type:'Vegetarisch',seasons:['lente','zomer'],nutrition:{kcal:560,prot:22,carb:72,fat:20},ingredients:['250g volkoren pasta','1 broccoli (roosjes)','5 el pesto','50g Parmezaan','2 el olijfolie','Zout & peper'],steps:['Kook pasta in gezouten water.','Voeg broccoli 3 min voor einde toe.','Bewaar kopje kookvocht, giet af.','Meng pesto door pasta met kookvocht.','Serveer met Parmezaan.']},
+  {id:'r5',name:'Boerenkoolrisotto',time:'40 min',type:'Vegetarisch',seasons:['herfst','winter'],nutrition:{kcal:580,prot:18,carb:74,fat:22},ingredients:['200g risottorijst','200g boerenkool','1 ui','2 teentjes knoflook','800ml warme bouillon','50g Parmezaan','2 el boter','2 el olijfolie','Walnoten','Zout & peper'],steps:['Blancheer boerenkool 2 min. Pureer met walnoten.','Fruit ui en knoflook.','Voeg rijst toe, roer glazig.','Voeg bouillon schepje voor schepje toe (18-20 min).','Roer boerenkoolpuree erdoor.','Haal van vuur, roer boter en Parmezaan erdoor.']},
+  {id:'r6',name:'Griekse omelet met salade',time:'15 min',type:'Vegetarisch',seasons:['lente','zomer'],nutrition:{kcal:380,prot:26,carb:8,fat:28},ingredients:['6 eieren','1 rode ui (ringen)','100g feta','Spinazie of rucola','2 el olijfolie','Verse kruiden','1 citroen','Zout & peper'],steps:['Kluts eieren met zout en peper.','Fruit ui 3-4 min.','Giet eieren erbij, strooi feta en kruiden erover.','Laat 8-10 min op laag vuur stollen.','Meng salade met olijfolie en citroensap.','Serveer omelet met salade.']},
+  {id:'r7',name:'Zoete aardappelcurry met kikkererwten',time:'35 min',type:'Vegetarisch',seasons:['herfst','winter'],nutrition:{kcal:540,prot:16,carb:76,fat:18},ingredients:['2 zoete aardappels (blokjes)','1 blik kikkererwten','1 ui','2 teentjes knoflook','2 cm gember','2 el currypasta','400ml kokosmelk','200ml bouillon','1 limoen','Verse koriander'],steps:['Fruit ui, knoflook en gember.','Voeg currypasta toe, bak 1-2 min.','Voeg zoete aardappel toe.','Giet kokosmelk en bouillon erbij.','Voeg kikkererwten toe, sudder 20-25 min.','Breng op smaak met limoensap. Serveer met rijst en koriander.']},
+  {id:'r8',name:'Zalm teriyaki met wilde rijst',time:'25 min',type:'Vis',seasons:['lente','zomer','herfst','winter'],nutrition:{kcal:570,prot:42,carb:54,fat:18},ingredients:['2 zalmfilets','200g basmatirijst','150g edamame','3 el sojasaus','1 el honing','1 el rijstazijn','1 teen knoflook','1 tl sesamolie','Sesamzaadjes'],steps:['Kook rijst. Voeg edamame laatste 3 min toe.','Meng soja, honing, azijn en knoflook tot teriyakisaus.','Bak zalm 3 min per kant, giet saus erover.','Karamelliseer saus 1-2 min.','Serveer zalm op rijst, garneer met sesamzaad.']},
+  {id:'r9',name:'Shakshuka met kikkererwten',time:'25 min',type:'Vegetarisch',seasons:['lente','zomer','herfst','winter'],nutrition:{kcal:360,prot:22,carb:28,fat:18},ingredients:['4 eieren','1 blik kikkererwten','400g passata','1 ui','2 teentjes knoflook','1 tl komijn','1 tl paprikapoeder','100g feta','2 el olijfolie','Volkoren brood'],steps:['Fruit ui en knoflook.','Voeg komijn en paprikapoeder toe.','Giet passata en kikkererwten erbij, laat 10 min pruttelen.','Maak kuiltjes, breek eieren erin.','Dek af, laat 6-8 min stollen.','Verkruimel feta, serveer met brood.']},
+  {id:'r10',name:'Linzensoep met spinazie',time:'30 min',type:'Vegetarisch',seasons:['winter','herfst'],nutrition:{kcal:440,prot:24,carb:62,fat:10},ingredients:['250g rode linzen','200g spinazie','1 ui','2 wortels','2 teentjes knoflook','1 tl komijn','1 tl kurkuma','1L groentebouillon','1 citroen (sap)','2 el olijfolie'],steps:['Fruit ui, knoflook en kruiden 2 min.','Voeg wortel en linzen toe, roer goed.','Giet bouillon erbij, kook 20 min.','Voeg spinazie toe, laat slinken.','Pureer gedeeltelijk.','Breng op smaak met citroensap.']},
+  {id:'r11',name:'Zalm met misoglazuur en soba',time:'25 min',type:'Vis',seasons:['herfst','winter'],nutrition:{kcal:530,prot:40,carb:48,fat:16},ingredients:['2 zalmfilets','150g soba noedels','2 el misopasta','1 el sojasaus','1 el honing','1 el rijstazijn','200g broccoli','1 el sesamolie','Sesamzaadjes'],steps:['Meng miso, soja, honing en azijn tot glazuur.','Bestrijk zalm, marineer 10 min.','Bak zalm 4 min per kant.','Kook soba noedels 5 min. Stoom broccoli 4 min.','Meng noedels met sesamolie.','Serveer met zalm en broccoli.']},
+  {id:'r12',name:'Kip shawarma bowl',time:'30 min',type:'Vlees',seasons:['lente','zomer','herfst','winter'],nutrition:{kcal:560,prot:44,carb:48,fat:18},ingredients:['2 kipfilets','2 tl komijn','1 tl kurkuma','1 tl paprikapoeder','200g couscous','1 komkommer','150g Griekse yoghurt','1 teen knoflook','Verse munt'],steps:['Meng kruiden met olijfolie, bestrooi kip.','Bak kip 6 min per kant, laat rusten.','Kook couscous.','Snijd kip in reepjes.','Maak knoflook-yoghurtsaus.','Serveer couscous met kip, komkommer en saus.']},
+  {id:'r13',name:'Stamppot boerenkool met rookworst',time:'30 min',type:'Vlees',seasons:['winter'],nutrition:{kcal:650,prot:30,carb:68,fat:28},ingredients:['800g aardappels','400g boerenkool','2 rookworsten','100ml melk','2 el boter','1 ui','Nootmuskaat, zout & peper'],steps:['Schil en kook aardappels 20 min.','Blancheer boerenkool 5 min apart.','Verwarm rookworst.','Stamp aardappels met melk en boter.','Meng boerenkool door stamp.','Breng op smaak met nootmuskaat. Serveer met rookworst.']},
+  {id:'r14',name:'Pasta met zalm en citroenroomsaus',time:'25 min',type:'Vis',seasons:['lente','zomer','herfst','winter'],nutrition:{kcal:540,prot:38,carb:54,fat:18},ingredients:['200g penne','200g zalmfilet','200g spinazie','150ml slagroom','1 sjalot','1 teen knoflook','Rasp van 1 citroen + sap','50g Parmezaan','Verse dille'],steps:['Kook pasta al dente. Fruit sjalot en knoflook in boter.','Voeg slagroom, citroensap en -rasp toe. Laat 3 min inkoken.','Voeg zalm in stukken toe, laat garen (5 min).','Roer spinazie erdoor.','Meng pasta door saus. Serveer met Parmezaan en dille.']},
+  {id:'r15',name:'Avocado toast met gepocheerd ei',time:'15 min',type:'Vegetarisch',seasons:['lente','zomer','herfst','winter'],nutrition:{kcal:380,prot:18,carb:28,fat:24},ingredients:['4 sneden zuurdesembrood','2 avocados','4 eieren','1 citroen','Chilivlokken','Bieslook','Sesamzaadjes'],steps:['Rooster brood. Pureer avocado met citroensap.','Breng water aan de kook met azijn, pocheer eieren 3 min.','Smeer avocado op toast.','Leg gepocheerd ei erop.','Garneer met chilivlokken en sesamzaad.']},
+  {id:'r16',name:'Kip tikka masala',time:'35 min',type:'Vlees',seasons:['herfst','winter'],nutrition:{kcal:510,prot:40,carb:36,fat:18},ingredients:['2 kipfilets (blokjes)','400g passata','200ml kookroom','1 ui','3 teentjes knoflook','2 cm gember','2 el tikka masalapasta','1 tl garam masala','Rijst','Verse koriander'],steps:['Fruit ui, knoflook en gember.','Voeg tikka pasta toe, bak 2 min.','Voeg kip toe, bak 5 min.','Voeg passata en room toe, laat 10 min pruttelen.','Serveer met rijst en koriander.']},
+  {id:'r17',name:'Mexicaanse burrito bowl',time:'25 min',type:'Vegetarisch',seasons:['lente','zomer','herfst','winter'],nutrition:{kcal:590,prot:28,carb:72,fat:20},ingredients:['1 blik kikkererwten','200g bruine rijst','1 avocado','150g mais','150g zwarte bonen','2 tl komijn','1 limoen','Verse koriander','Zure room'],steps:['Kook bruine rijst.','Bak kikkererwten met komijn 5 min.','Warm mais en bonen op.','Pureer avocado met limoensap.','Verdeel rijst over kommen.','Leg alles erop, garneer met koriander.']},
+  {id:'r18',name:'Spinazie-frittata met geitenkaas',time:'20 min',type:'Vegetarisch',seasons:['lente','zomer'],nutrition:{kcal:390,prot:28,carb:6,fat:30},ingredients:['6 eieren','150g spinazie','100g zachte geitenkaas','1 rode ui','2 teentjes knoflook','2 el olijfolie','Verse tijm','Zout & peper'],steps:['Verwarm oven op 180°C.','Fruit ui en knoflook in ovenproof pan.','Voeg spinazie toe, laat slinken.','Kluts eieren met tijm, giet over spinazie.','Verkruimel geitenkaas erop.','Bak 10 min in oven.']},
+  {id:'r19',name:'Buddha bowl met geroosterde kikkererwten',time:'30 min',type:'Vegetarisch',seasons:['lente','zomer','herfst','winter'],nutrition:{kcal:510,prot:20,carb:62,fat:20},ingredients:['1 blik kikkererwten','150g quinoa','1 avocado','200g rode kool','2 wortels (geraspt)','2 el tahini','1 citroen','1 tl paprikapoeder','Sesamzaadjes'],steps:['Verwarm oven op 200°C. Rooster kikkererwten met paprika 25 min.','Kook quinoa 15 min.','Maak tahinidressing met citroen en water.','Verdeel quinoa, kool, wortel en avocado over kommen.','Leg kikkererwten erop, druppel dressing erover.']},
+  {id:'r20',name:'Kip gyros met tzatziki',time:'25 min',type:'Vlees',seasons:['zomer','lente'],nutrition:{kcal:500,prot:42,carb:38,fat:18},ingredients:['2 kipfilets (reepjes)','2 tl oregano','1 tl paprikapoeder','200g Griekse yoghurt','1 komkommer (geraspt)','2 teentjes knoflook','Verse dille','Pitabrood','Rode ui'],steps:['Marineer kip met kruiden en olijfolie.','Bak kip op hoog vuur 6-8 min.','Maak tzatziki: yoghurt, komkommer, knoflook, dille.','Warm pitabrood op.','Beleg pita met kip, ui en tzatziki.']},
+  {id:'r21',name:'Wok met biefstuk en broccoli',time:'20 min',type:'Vlees',seasons:['lente','zomer','herfst','winter'],nutrition:{kcal:510,prot:38,carb:42,fat:18},ingredients:['300g biefstuk (reepjes)','1 broccoli','2 wortels (julienne)','3 el oystersaus','2 el sojasaus','1 el sesamolie','2 teentjes knoflook','Rijst','Sesamzaadjes'],steps:['Kook rijst.','Roerbak vlees op hoog vuur 2-3 min, opzij.','Roerbak knoflook 30 sec.','Voeg broccoli en wortel toe, roerbak 3-4 min.','Voeg vlees en sauzen toe. Garneer met sesamzaad.']},
+  {id:'r22',name:'Garnalen met knoflook en linguine',time:'20 min',type:'Vis',seasons:['lente','zomer'],nutrition:{kcal:480,prot:32,carb:58,fat:14},ingredients:['300g garnalen (gepeld)','250g linguine','4 teentjes knoflook','1 citroen','100ml witte wijn','3 el olijfolie','Verse peterselie','Chilivlokken'],steps:['Kook linguine.','Fruit knoflook en chili 1 min.','Voeg garnalen toe, bak 2 min per kant.','Blus met wijn.','Voeg pasta toe met kookvocht.','Breng op smaak met citroen, garneer met peterselie.']},
+  {id:'r23',name:'Marokkaanse groentestoofpot',time:'35 min',type:'Vegetarisch',seasons:['herfst','winter'],nutrition:{kcal:400,prot:14,carb:62,fat:12},ingredients:['2 zoete aardappels','2 wortels','1 blik kikkererwten','1 ui','2 teentjes knoflook','1 tl ras el hanout','400g passata','200ml bouillon','Couscous','Verse koriander'],steps:['Fruit ui en knoflook met kruiden.','Voeg zoete aardappel en wortel toe.','Voeg passata en bouillon toe, laat 20 min sudderen.','Voeg kikkererwten toe.','Kook couscous, garneer met koriander.']},
+  {id:'r24',name:'Salade niçoise',time:'20 min',type:'Vis',seasons:['zomer','lente'],nutrition:{kcal:430,prot:28,carb:28,fat:22},ingredients:['2 blikken tonijn','4 eieren','200g sperziebonen','200g krieltjes','100g olijven','2 el kappertjes','3 el olijfolie','1 el dijonmosterd','1 el rode wijnazijn','Rucola'],steps:['Kook krieltjes 12 min, laat afkoelen.','Kook eieren 8 min, halveer.','Blancheer sperziebonen 3 min.','Maak dressing van olijfolie, mosterd en azijn.','Verdeel rucola, leg alles erop, druppel dressing erover.']},
+  {id:'r25',name:'Japanse miso-ramen',time:'25 min',type:'Vegetarisch',seasons:['herfst','winter'],nutrition:{kcal:460,prot:20,carb:58,fat:16},ingredients:['2 el misopasta','1L groentebouillon','200g ramen noedels','2 eieren','100g shiitake paddenstoelen','100g spinazie','2 lente-uitjes','1 el sojasaus','Sesamzaadjes'],steps:['Breng bouillon aan de kook, los miso en soja op.','Kook eieren 6 min, halveer.','Voeg paddenstoelen toe, kook 5 min.','Kook noedels apart. Voeg spinazie toe.','Verdeel noedels, giet soep erbij, leg ei erop.']},
+];
+
+// ─── STATE ────────────────────────────────────────────────────────
+let state = {
+  weekRecipes:  BASE_RECIPES.slice(0,7).map((r,i)=>({...r,dayIndex:i})),
+  favorites:    [],
+  ratings:      {},
+  suggestions:  [],
+  extraRecipes: [],
+  checkedItems: new Set(),
+  seasonFilter: detectSeason(),
+  editingRecipeId: null,
+  settings: {
+    name:'', persons:'2',
+    goals:['Oestrogeen/progesteron balans','Borstvoeding ondersteuning','Gezond eten'],
+    diet:'alles', maxTime:40, cuisine:'gemengd',
+    seasonal:true, season:'auto', showNutrition:true,
+    avoid:['Tofu','Tomaatjes','Spruitjes'], allergies:[],
+    hormoneIngredients:['Boerenkool','Broccoli','Zalm','Kikkererwten','Eieren','Avocado'],
+    healthGoals:'Oestrogeen/progesteron balans, borstvoeding ondersteuning',
+    style:'Miljuschka', extra:'Gemakkelijk en snel'
+  }
+};
+let currentUser = null;
+let saveTimeout = null;
+
+// ─── AUTH ─────────────────────────────────────────────────────────
+async function sendMagicLink() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const msg = document.getElementById('loginMsg');
+  const btn = document.getElementById('loginBtn');
+  if (!email) { showMsg(msg,'Vul je e-mailadres in.','error'); return; }
+  btn.disabled = true; btn.textContent = 'Versturen...';
+  const { error } = await supabase.auth.signInWithOtp({
+    email, options: { emailRedirectTo: window.location.href }
+  });
+  if (error) {
+    showMsg(msg, 'Fout: ' + error.message, 'error');
+    btn.disabled = false; btn.textContent = '✉️ Stuur inloglink';
+  } else {
+    showMsg(msg, '✅ Link verstuurd! Check je e-mail.', 'success');
+  }
+}
+function showMsg(el, txt, cls) { el.textContent = txt; el.className = 'login-msg ' + cls; }
+
+async function logout() {
+  await supabase.auth.signOut();
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+// ─── SUPABASE DATA ────────────────────────────────────────────────
+async function loadUserData() {
+  if (!currentUser) return;
+  try {
+    const { data, error } = await supabase.from('user_data').select('*').eq('user_id', currentUser.id).single();
+    if (error && error.code !== 'PGRST116') return;
+    if (!data) return;
+    const pool = getAllRecipes();
+    if (data.extra_recipes?.length) { state.extraRecipes = data.extra_recipes; }
+    if (data.week_recipes?.length) {
+      const rebuilt = data.week_recipes.map(s => { const r = pool.find(x=>x.id===s.id); return r ? {...r, dayIndex:s.dayIndex} : null; }).filter(Boolean);
+      if (rebuilt.length) state.weekRecipes = rebuilt;
+    }
+    if (data.favorites?.length) state.favorites = data.favorites.map(id => getAllRecipes().find(r=>r.id===id)).filter(Boolean);
+    if (data.ratings) state.ratings = data.ratings;
+    if (data.checked_items?.length) state.checkedItems = new Set(data.checked_items);
+    if (data.settings) state.settings = {...state.settings, ...data.settings};
+  } catch(e) { console.error(e); }
+}
+
+async function saveUserData() {
+  if (!currentUser) return;
+  try {
+    await supabase.from('user_data').upsert({
+      user_id: currentUser.id,
+      week_recipes: state.weekRecipes.map(r=>({id:r.id,dayIndex:r.dayIndex})),
+      favorites: state.favorites.map(r=>r.id),
+      ratings: state.ratings,
+      extra_recipes: state.extraRecipes,
+      checked_items: [...state.checkedItems],
+      settings: state.settings,
+      updated_at: new Date().toISOString()
+    }, {onConflict:'user_id'});
+    setSaveIndicator('✅ Opgeslagen');
+  } catch(e) { console.error(e); }
+}
+
+function scheduleSave() {
+  setSaveIndicator('💾...');
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(saveUserData, 1200);
+}
+
+function setSaveIndicator(msg) {
+  const el = document.getElementById('saveIndicator');
+  el.textContent = msg;
+  if (msg.startsWith('✅')) setTimeout(()=>el.textContent='', 3000);
+}
+
+function getAllRecipes() { return [...BASE_RECIPES, ...state.extraRecipes]; }
+
+// ─── INIT ─────────────────────────────────────────────────────────
+async function initApp() {
+  const { data: { session } } = await supabase.auth.getSession();
+  document.getElementById('loadingOverlay').style.display = 'none';
+  if (session?.user) {
+    currentUser = session.user;
+    await loadUserData();
+    showApp();
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+  }
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session?.user) {
+      currentUser = session.user;
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('loadingOverlay').style.display = 'flex';
+      await loadUserData();
+      document.getElementById('loadingOverlay').style.display = 'none';
+      showApp();
+    }
+    if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      document.getElementById('appScreen').style.display = 'none';
+      document.getElementById('loginScreen').style.display = 'flex';
+    }
+  });
+}
+
+function showApp() {
+  state.seasonFilter = getCurrentSeason();
+  shuffleSuggestions();
+  renderAll();
+  document.getElementById('appScreen').style.display = 'block';
+  if (state.settings.name) {
+    document.getElementById('headerSub').textContent = `Welkom terug, ${state.settings.name}! 🌿`;
+  }
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.tab').forEach(btn => {
+    if (btn.getAttribute('onclick') === `showTab('${id}')`) btn.classList.add('active');
+  });
+  if (id === 'instellingen') populateSettingsForm();
+  if (id === 'recepten') renderAllRecipes();
+}
+
+function notify(msg, type='') {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.className = 'notif show' + (type ? ' '+type : '');
+  clearTimeout(notify._t);
+  notify._t = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ─── RENDER ALL ───────────────────────────────────────────────────
+function renderAll() {
+  renderWeekGrid();
+  renderSuggestions();
+  renderFavorites();
+  renderGroceryList();
+  renderDayPages();
+  renderSeasonPills();
+}
+
+// ─── WEEK GRID ────────────────────────────────────────────────────
+function renderWeekGrid() {
+  const grid = document.getElementById('weekGrid');
+  if (!state.weekRecipes.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🌱</div><p>Nog geen weekmenu.<br>Druk op Genereer!</p></div>`;
+    return;
+  }
+  const sorted = [...state.weekRecipes].sort((a,b) => a.dayIndex - b.dayIndex);
+  grid.innerHTML = sorted.map(r => recipeCard(r, {showDay:true, showRemove:true})).join('');
+}
+
+// ─── SUGGESTIONS ──────────────────────────────────────────────────
+function shuffleSuggestions() {
+  // Pool = alle recepten gefilterd op seizoen + settings (dieet, maxTime, avoid, allergieën)
+  // Geen voorkeur/sorting — gewoon shuffle binnen die pool
+  const pool = getFilteredPool().filter(r => !isInWeek(r));
+  state.suggestions = shuffle(pool).slice(0, 12);
+  renderSuggestions();
+}
+
+// Gedeeld filtered pool: seizoen + dieet + maxTime + avoid + allergieën
+function getFilteredPool() {
+  const s = state.settings;
+  const avoidLower  = (s.avoid || []).map(a => a.toLowerCase());
+  const allergyLower = (s.allergies || []).map(a => a.toLowerCase());
+
+  return getAllRecipes().filter(r => {
+    // Seizoen
+    if (!matchesSeason(r)) return false;
+
+    // Max bereidingstijd
+    if (s.maxTime) {
+      const mins = parseInt(r.time);
+      if (!isNaN(mins) && mins > s.maxTime) return false;
+    }
+
+    // Dieet
+    if (s.diet === 'vegetarisch' && r.type === 'Vlees') return false;
+    if (s.diet === 'vegan' && (r.type === 'Vlees' || r.type === 'Vis')) return false;
+
+    // Vermijden & allergieën: check ingrediënten
+    const ingText = (r.ingredients || []).join(' ').toLowerCase();
+    if (avoidLower.some(a => ingText.includes(a))) return false;
+    if (allergyLower.some(a => ingText.includes(a))) return false;
+
+    return true;
+  });
+}
+
+function renderSuggestions() {
+  const grid = document.getElementById('suggestionsGrid');
+  const filtered = state.suggestions.filter(r => matchesSeason(r));
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🍽️</div><p>Geen suggesties voor dit seizoen</p></div>`;
+    return;
+  }
+  grid.innerHTML = filtered.map(r => recipeCard(r, {showAdd:true})).join('');
+}
+
+// ─── FAVORITES ────────────────────────────────────────────────────
+function renderFavorites() {
+  const grid = document.getElementById('favGrid');
+  if (!state.favorites.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">⭐</div><p>Nog geen favorieten.<br>Geef een duimpje omhoog!</p></div>`;
+    return;
+  }
+  grid.innerHTML = state.favorites.map(r => recipeCard(r, {showAdd:true})).join('');
+}
+
+// ─── DAY PAGES ────────────────────────────────────────────────────
+function renderDayPages() {
+  DAY_IDS.forEach((dayId, i) => {
+    const el = document.getElementById(dayId);
+    const recipe = state.weekRecipes.find(r => r.dayIndex === i);
+    if (!recipe) {
+      el.innerHTML = `<div class="page">
+        <div class="day-hero"><h2>${DAYS[i]}</h2><p>Nog geen recept gepland</p></div>
+        <div class="day-empty"><p style="font-size:24px">🌿</p><p style="margin-top:8px">Voeg een recept toe vanuit de Home tab</p></div>
+      </div>`;
+      return;
+    }
+    el.innerHTML = `<div class="page">
+      <div class="day-hero">
+        <h2>${DAYS[i]}</h2>
+        <p>${recipe.name} — ${recipe.time}</p>
+      </div>
+      ${recipeDetail(recipe)}
+    </div>`;
+  });
+}
+
+// ─── ALL RECIPES PAGE ─────────────────────────────────────────────
+function renderAllRecipes() {
+  const grid = document.getElementById('allRecipesGrid');
+  const all = getAllRecipes();
+  grid.innerHTML = all.map(r => recipeCard(r, {showAdd:true, showEdit:true})).join('');
+}
+
+// ─── GROCERY LIST ─────────────────────────────────────────────────
+function renderGroceryList() {
+  const container = document.getElementById('groceryCategories');
+  const allIngredients = [];
+  state.weekRecipes.forEach(r => {
+    (r.ingredients || []).forEach(ing => {
+      allIngredients.push({text: ing, recipe: r.name});
+    });
+  });
+
+  // Group by AH category
+  const grouped = {};
+  allIngredients.forEach(item => {
+    const cat = categorizeIngredient(item.text);
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(item.text);
+  });
+
+  // Remove duplicates per category
+  Object.keys(grouped).forEach(cat => {
+    grouped[cat] = [...new Set(grouped[cat])];
+  });
+
+  const total = Object.values(grouped).flat().length;
+  const checked = [...state.checkedItems].length;
+  document.getElementById('progTxt').textContent = `${checked} van ${total} afgevinkt`;
+  document.getElementById('progFill').style.width = total ? `${(checked/total)*100}%` : '0%';
+
+  const catOrder = Object.keys(AH_CATEGORIES);
+  const sorted = [...catOrder.filter(c => grouped[c]), ...Object.keys(grouped).filter(c => !catOrder.includes(c))];
+
+  container.innerHTML = sorted.filter(c => grouped[c]).map(cat => `
+    <div class="grocery-cat">
+      <div class="grocery-cat-title">${cat}</div>
+      ${grouped[cat].map(item => {
+        const key = item.toLowerCase().trim();
+        const isChecked = state.checkedItems.has(key);
+        return `<div class="grocery-item ${isChecked?'checked':''}" onclick="toggleItem('${key.replace(/'/g,"\\'")}')">
+          <div class="grocery-checkbox ${isChecked?'checked':''}">${isChecked?'✓':''}</div>
+          <div class="grocery-item-text">${item}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  `).join('');
+}
+
+function toggleItem(key) {
+  if (state.checkedItems.has(key)) state.checkedItems.delete(key);
+  else state.checkedItems.add(key);
+  renderGroceryList();
+  scheduleSave();
+}
+function clearChecked() { state.checkedItems.clear(); renderGroceryList(); scheduleSave(); }
+function checkAll() {
+  const all = state.weekRecipes.flatMap(r => r.ingredients || []);
+  all.forEach(i => state.checkedItems.add(i.toLowerCase().trim()));
+  renderGroceryList(); scheduleSave();
+}
+function copyList() {
+  const allIngredients = state.weekRecipes.flatMap(r => r.ingredients || []);
+  const grouped = {};
+  allIngredients.forEach(ing => {
+    const cat = categorizeIngredient(ing);
+    if (!grouped[cat]) grouped[cat] = [];
+    if (!grouped[cat].includes(ing)) grouped[cat].push(ing);
+  });
+  const text = Object.entries(grouped).map(([cat,items]) => `${cat}\n${items.map(i=>`• ${i}`).join('\n')}`).join('\n\n');
+  navigator.clipboard?.writeText(text).then(() => notify('📋 Gekopieerd!'));
+}
+
+// ─── SEASON FILTER ────────────────────────────────────────────────
+function renderSeasonPills() {
+  const bar = document.getElementById('seasonPills');
+  const filters = [{id:'alle',label:'🍽️ Alle'}, ...SEASONS.map(s=>({id:s,label:`${SEASON_EMOJI[s]} ${s.charAt(0).toUpperCase()+s.slice(1)}`}))];
+  bar.innerHTML = filters.map(f => `<button class="season-pill ${state.seasonFilter===f.id?'active':''}" onclick="setSeason('${f.id}')">${f.label}</button>`).join('');
+}
+function setSeason(s) { state.seasonFilter = s; renderSeasonPills(); renderSuggestions(); }
+function matchesSeason(r) {
+  if (!state.settings.seasonal) return true;
+  if (state.seasonFilter === 'alle') return true;
+  if (!r.seasons || r.seasons.length === 4) return true;
+  return r.seasons.includes(state.seasonFilter);
+}
+
+// ─── WEEK ACTIONS ─────────────────────────────────────────────────
+function addToWeek(recipeId, dayIndex) {
+  const recipe = getAllRecipes().find(r => r.id === recipeId);
+  if (!recipe) return;
+  state.weekRecipes = state.weekRecipes.filter(r => r.dayIndex !== dayIndex);
+  state.weekRecipes.push({...recipe, dayIndex});
+  renderAll(); scheduleSave();
+  notify(`✅ ${recipe.name} gepland op ${DAYS[dayIndex]}`);
+}
+
+function removeFromWeek(recipeId) {
+  state.weekRecipes = state.weekRecipes.filter(r => r.id !== recipeId);
+  renderAll(); scheduleSave();
+  notify('🗑️ Verwijderd uit weekmenu');
+}
+
+function generateRecipes() {
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true; btn.textContent = '✨ Genereren...';
+
+  const s = state.settings;
+  const hormoneLower = (s.hormoneIngredients || []).map(h => h.toLowerCase());
+
+  // 1. Gefilterde pool: seizoen + dieet + maxTime + avoid + allergieën
+  let pool = getFilteredPool();
+
+  // 2. Verwijder 👎-geratede recepten
+  pool = pool.filter(r => state.ratings[r.id]?.rating !== 'down');
+
+  // 3. Splits: hormoon-prioriteit vs rest
+  const hormoonPool = pool.filter(r => {
+    const ingText = (r.ingredients || []).join(' ').toLowerCase();
+    return hormoneLower.some(h => ingText.includes(h));
+  });
+  const restPool = pool.filter(r => !hormoonPool.find(h => h.id === r.id));
+
+  // 4. Shuffle beide groepen apart, hormoon voorop
+  const combined = [...shuffle(hormoonPool), ...shuffle(restPool)].slice(0, 7);
+
+  // 5. Fallback als te weinig recepten na filters
+  let final = combined;
+  if (final.length < 7) {
+    const fallback = shuffle(getAllRecipes().filter(r =>
+      matchesSeason(r) && state.ratings[r.id]?.rating !== 'down' && !combined.find(c => c.id === r.id)
+    ));
+    final = [...combined, ...fallback].slice(0, 7);
+  }
+
+  state.weekRecipes = final.map((r, i) => ({...r, dayIndex:i}));
+  renderAll(); scheduleSave();
+  btn.disabled = false; btn.textContent = '✨ Genereer';
+  const hormCount = Math.min(hormoonPool.length, 7);
+  notify('🎉 Weekmenu gegenereerd!' + (hormCount > 0 ? ' (' + hormCount + ' hormoonrecepten)' : ''));
+}
+
+function remixWeek() {
+  // Remix = shuffle binnen gefilterde pool, geen voorkeur-logica
+  let pool = getFilteredPool().filter(r => state.ratings[r.id]?.rating !== 'down');
+  const shuffled = shuffle(pool);
+  let final = shuffled.slice(0, 7);
+  if (final.length < 7) {
+    const fallback = shuffle(getAllRecipes().filter(r =>
+      matchesSeason(r) && !final.find(f => f.id === r.id)
+    ));
+    final = [...final, ...fallback].slice(0, 7);
+  }
+  state.weekRecipes = final.map((r, i) => ({...r, dayIndex:i}));
+  renderAll(); scheduleSave();
+  notify('🔀 Week geremixt!');
+}
+
+function isInWeek(r) { return state.weekRecipes.some(w => w.id === r.id); }
+
+// ─── RATINGS ──────────────────────────────────────────────────────
+function rateRecipe(id, type) {
+  if (!state.ratings[id]) state.ratings[id] = {};
+  const current = state.ratings[id].rating;
+  state.ratings[id].rating = current === type ? null : type;
+  if (type === 'up' && !state.favorites.find(r => r.id === id)) {
+    const recipe = getAllRecipes().find(r => r.id === id);
+    if (recipe) { state.favorites.push(recipe); notify('⭐ Toegevoegd aan favorieten!'); }
+  }
+  if (type === 'down') {
+    state.favorites = state.favorites.filter(r => r.id !== id);
+  }
+  renderAll(); scheduleSave();
+}
+
+function saveComment(id) {
+  const val = document.getElementById(`comment-${id}`)?.value;
+  if (!state.ratings[id]) state.ratings[id] = {};
+  state.ratings[id].comment = val;
+  renderAll(); scheduleSave();
+  notify('💬 Notitie opgeslagen');
+}
+
+// ─── RECIPE CARD HTML ─────────────────────────────────────────────
+function recipeCard(r, opts={}) {
+  const rating = state.ratings[r.id] || {};
+  const typeClass = r.type === 'Vis' ? 'chip-type-vis' : r.type === 'Vlees' ? 'chip-type-vlees' : 'chip-type-veg';
+  const inWeek = isInWeek(r);
+
+  const nutHTML = state.settings.showNutrition && r.nutrition ? `
+    <div class="nut-row">
+      <div class="nut kcal"><div class="nut-v">${r.nutrition.kcal}</div><div class="nut-l">kcal</div></div>
+      <div class="nut prot"><div class="nut-v">${r.nutrition.prot}g</div><div class="nut-l">eiwit</div></div>
+      <div class="nut carb"><div class="nut-v">${r.nutrition.carb}g</div><div class="nut-l">koolh.</div></div>
+      <div class="nut fat"><div class="nut-v">${r.nutrition.fat}g</div><div class="nut-l">vet</div></div>
+    </div>` : '';
+
+  const dayBadge = opts.showDay && r.dayIndex !== undefined
+    ? `<div class="day-badge">${DAYS[r.dayIndex]}</div>` : '';
+
+  const seasonHTML = r.seasons && r.seasons.length < 4
+    ? r.seasons.map(s => `<span class="chip chip-season">${SEASON_EMOJI[s]}</span>`).join('') : '';
+
+  const commentHTML = rating.comment
+    ? `<div class="comment-text">"${rating.comment}"</div>` : '';
+
+  const dayOpts = DAYS.map((d,i) => `<option value="${i}">${d}</option>`).join('');
+
+  let actions = '';
+  if (opts.showAdd) {
+    actions += `<select class="day-select" id="daysel-${r.id}"><option value="">Voeg toe aan dag...</option>${dayOpts}</select>
+      <button class="btn btn-primary" style="margin-top:6px;width:100%" onclick="addToWeek('${r.id}', parseInt(document.getElementById('daysel-${r.id}').value))">+ Toevoegen</button>`;
+  }
+  if (opts.showRemove) {
+    actions += `<button class="btn btn-danger" onclick="removeFromWeek('${r.id}')">🗑️ Verwijder</button>`;
+  }
+  if (opts.showEdit) {
+    actions += `<button class="btn btn-ghost" onclick="openEditor('${r.id}')">✏️ Bewerk</button>`;
+  }
+  actions += `<button class="btn btn-ghost" onclick="showRecipeDetail('${r.id}')">👁️ Bekijk</button>`;
+
+  return `
+    <div class="card ${inWeek ? 'in-week' : ''}">
+      ${dayBadge}
+      <div class="card-name">${r.name}</div>
+      <div class="card-meta">
+        <span class="chip chip-time">⏱ ${r.time}</span>
+        <span class="chip ${typeClass}">${r.type || ''}</span>
+        ${seasonHTML}
+      </div>
+      ${nutHTML}
+      <div class="rating-row">
+        <button class="rate-btn up ${rating.rating==='up'?'active':''}" onclick="rateRecipe('${r.id}','up')">👍</button>
+        <button class="rate-btn down ${rating.rating==='down'?'active':''}" onclick="rateRecipe('${r.id}','down')">👎</button>
+      </div>
+      ${commentHTML}
+      <textarea class="comment-box" id="comment-${r.id}" placeholder="Notitie..." rows="2">${rating.comment||''}</textarea>
+
+```
+  <button class="btn btn-ghost" style="width:100%;margin-bottom:8px;font-size:10px" onclick="saveComment('${r.id}')">💬 Sla op</button>
+  <div class="card-actions">${actions}</div>
+</div>`;
+```
+
+}
+
+// ─── RECIPE DETAIL ────────────────────────────────────────────────
+function recipeDetail(r) {
+const nutHTML = state.settings.showNutrition && r.nutrition ? ` <div class="nut-detail-row"> <div class="nd kcal"><div class="nd-v">${r.nutrition.kcal}</div><div class="nd-l">kcal</div></div> <div class="nd prot"><div class="nd-v">${r.nutrition.prot}g</div><div class="nd-l">Eiwit</div></div> <div class="nd carb"><div class="nd-v">${r.nutrition.carb}g</div><div class="nd-l">Koolh.</div></div> <div class="nd fat"><div class="nd-v">${r.nutrition.fat}g</div><div class="nd-l">Vet</div></div> </div>` : ‘’;
+
+return `<div class="recipe-detail"> <div class="recipe-detail-meta"> <span class="chip chip-time">⏱ ${r.time}</span> ${r.type ?`<span class="chip ${r.type==='Vis'?'chip-type-vis':r.type==='Vlees'?'chip-type-vlees':'chip-type-veg'}">${r.type}</span>`: ''} </div> ${nutHTML} ${r.ingredients?.length ?`<div class="detail-section"><h3>Ingrediënten (${state.settings.persons || 2} personen)</h3><ul class="ing-list">${r.ingredients.map(i=>`<li>${i}</li>`).join(’’)}</ul></div>`: ''} ${r.steps?.length ?`<div class="detail-section"><h3>Bereiding</h3><ol class="step-list">${r.steps.map(s=>`<li>${s}</li>`).join(’’)}</ol></div>` : ''} </div>`;
+}
+
+function showRecipeDetail(id) {
+const r = getAllRecipes().find(x => x.id === id);
+if (!r) return;
+// Show in a simple modal overlay reuse
+const modal = document.getElementById(‘editorModal’);
+const sheet = document.getElementById(‘editorSheet’);
+sheet.innerHTML = ` <div class="modal-header"> <h2 style="font-family:'Playfair Display',serif;font-size:20px">${r.name}</h2> <button class="close-btn" onclick="closeEditor()">✕</button> </div> ${recipeDetail(r)}`;
+modal.classList.add(‘open’);
+}
+
+// ─── RECIPE EDITOR ────────────────────────────────────────────────
+function openEditor(recipeId) {
+const isNew = !recipeId;
+state.editingRecipeId = recipeId || null;
+
+// Rebuild editor form
+document.getElementById(‘editorModal’).classList.add(‘open’);
+
+// Re-inject form HTML
+document.getElementById(‘editorSheet’).innerHTML = `<div class="modal-header"> <h2>${isNew ? 'Nieuw recept toevoegen' : 'Recept bewerken'}</h2> <button class="close-btn" onclick="closeEditor()">✕</button> </div> <div class="field-row"> <div class="field" style="flex:2"><label>Naam</label><input type="text" id="e-name" placeholder="Naam van het gerecht"></div> <div class="field"><label>Tijd</label><input type="text" id="e-time" placeholder="25 min"></div> </div> <div class="field-row"> <div class="field"><label>Type</label> <select id="e-type"><option value="Vis">🐟 Vis</option><option value="Vlees">🍗 Vlees</option><option value="Vegetarisch">🥗 Vegetarisch</option></select> </div> </div> <div class="field-row"> <div class="field"><label>Calorieën</label><input type="number" id="e-kcal" placeholder="500"></div> <div class="field"><label>Eiwit (g)</label><input type="number" id="e-prot" placeholder="30"></div> <div class="field"><label>Koolh. (g)</label><input type="number" id="e-carb" placeholder="45"></div> <div class="field"><label>Vet (g)</label><input type="number" id="e-fat" placeholder="18"></div> </div> <div class="field"><label>Ingrediënten (voor 2 personen, 1 per regel)</label> <textarea id="e-ingredients" rows="6" placeholder="2 zalmfilets&#10;150g quinoa&#10;..."></textarea> </div> <div class="field"><label>Bereidingsstappen (1 per regel)</label> <textarea id="e-steps" rows="6" placeholder="Verwarm de oven op 180°C.&#10;..."></textarea> </div> <div style="display:flex;gap:10px;margin-top:4px"> <button class="btn btn-primary btn-lg" style="flex:1" onclick="saveRecipe()">💾 Opslaan</button> ${!isNew ?`<button class="btn btn-danger btn-lg" onclick="deleteRecipe()">🗑️</button>` : ''} </div>`;
+
+if (!isNew) {
+const r = getAllRecipes().find(x => x.id === recipeId);
+if (r) {
+document.getElementById(‘e-name’).value = r.name || ‘’;
+document.getElementById(‘e-time’).value = r.time || ‘’;
+document.getElementById(‘e-type’).value = r.type || ‘Vegetarisch’;
+document.getElementById(‘e-kcal’).value = r.nutrition?.kcal || ‘’;
+document.getElementById(‘e-prot’).value = r.nutrition?.prot || ‘’;
+document.getElementById(‘e-carb’).value = r.nutrition?.carb || ‘’;
+document.getElementById(‘e-fat’).value = r.nutrition?.fat || ‘’;
+document.getElementById(‘e-ingredients’).value = (r.ingredients || []).join(’\n’);
+document.getElementById(‘e-steps’).value = (r.steps || []).join(’\n’);
+}
+}
+}
+
+function closeEditor() {
+document.getElementById(‘editorModal’).classList.remove(‘open’);
+state.editingRecipeId = null;
+}
+
+function saveRecipe() {
+const name = document.getElementById(‘e-name’)?.value.trim();
+if (!name) { notify(‘❌ Vul een naam in’, ‘error’); return; }
+const recipe = {
+id: state.editingRecipeId || ‘custom_’ + Date.now(),
+name,
+time: document.getElementById(‘e-time’)?.value.trim() || ‘30 min’,
+type: document.getElementById(‘e-type’)?.value || ‘Vegetarisch’,
+seasons: [‘lente’,‘zomer’,‘herfst’,‘winter’],
+nutrition: {
+kcal: parseInt(document.getElementById(‘e-kcal’)?.value) || 0,
+prot: parseInt(document.getElementById(‘e-prot’)?.value) || 0,
+carb: parseInt(document.getElementById(‘e-carb’)?.value) || 0,
+fat:  parseInt(document.getElementById(‘e-fat’)?.value)  || 0,
+},
+ingredients: (document.getElementById(‘e-ingredients’)?.value || ‘’).split(’\n’).map(s=>s.trim()).filter(Boolean),
+steps: (document.getElementById(‘e-steps’)?.value || ‘’).split(’\n’).map(s=>s.trim()).filter(Boolean),
+};
+
+if (state.editingRecipeId) {
+// Update existing extra recipe
+const idx = state.extraRecipes.findIndex(r => r.id === state.editingRecipeId);
+if (idx >= 0) state.extraRecipes[idx] = recipe;
+else state.extraRecipes.push(recipe);
+// Also update in week if present
+const wIdx = state.weekRecipes.findIndex(r => r.id === state.editingRecipeId);
+if (wIdx >= 0) state.weekRecipes[wIdx] = {…recipe, dayIndex: state.weekRecipes[wIdx].dayIndex};
+} else {
+state.extraRecipes.push(recipe);
+}
+
+closeEditor();
+renderAll();
+renderAllRecipes();
+scheduleSave();
+notify(‘✅ Recept opgeslagen!’);
+}
+
+function deleteRecipe() {
+if (!state.editingRecipeId) return;
+state.extraRecipes = state.extraRecipes.filter(r => r.id !== state.editingRecipeId);
+state.weekRecipes = state.weekRecipes.filter(r => r.id !== state.editingRecipeId);
+state.favorites = state.favorites.filter(r => r.id !== state.editingRecipeId);
+closeEditor();
+renderAll();
+renderAllRecipes();
+scheduleSave();
+notify(‘🗑️ Recept verwijderd’);
+}
+
+// ─── SETTINGS ─────────────────────────────────────────────────────
+function populateSettingsForm() {
+const s = state.settings;
+document.getElementById(‘s-name’).value = s.name || ‘’;
+document.getElementById(‘s-persons’).value = s.persons || ‘2’;
+document.getElementById(‘s-diet’).value = s.diet || ‘alles’;
+document.getElementById(‘s-maxtime’).value = s.maxTime || 40;
+document.getElementById(‘s-cuisine’).value = s.cuisine || ‘gemengd’;
+document.getElementById(‘s-seasonal’).checked = s.seasonal !== false;
+document.getElementById(‘s-season’).value = s.season || ‘auto’;
+document.getElementById(‘s-nutrition’).checked = s.showNutrition !== false;
+document.getElementById(‘s-health’).value = s.healthGoals || ‘’;
+document.getElementById(‘s-style’).value = s.style || ‘’;
+document.getElementById(‘s-extra’).value = s.extra || ‘’;
+renderTags(‘goalTags’, s.goals || [], ‘goal’);
+renderTags(‘avoidTags’, s.avoid || [], ‘avoid’);
+renderTags(‘allergyTags’, s.allergies || [], ‘allergy’);
+renderTags(‘hormoneTags’, s.hormoneIngredients || [], ‘hormone’);
+}
+
+function renderTags(containerId, items, type) {
+const cls = type === ‘avoid’ ? ‘avoid-tag’ : type === ‘allergy’ ? ‘allergy-tag’ : ‘’;
+document.getElementById(containerId).innerHTML = items.map((t,i) =>
+`<span class="tag ${cls}">${t}<span class="remove-tag" onclick="removeTag('${type}',${i})">×</span></span>`
+).join(’’);
+}
+
+function addTag(type) {
+const map = {
+goal:    [‘goalInput’,    ‘goals’,              ‘goalTags’],
+avoid:   [‘avoidInput’,   ‘avoid’,              ‘avoidTags’],
+allergy: [‘allergyInput’, ‘allergies’,          ‘allergyTags’],
+hormone: [‘hormoneInput’, ‘hormoneIngredients’, ‘hormoneTags’],
+};
+const [inputId, key, tagId] = map[type];
+const val = document.getElementById(inputId)?.value.trim();
+if (!val) return;
+if (!state.settings[key]) state.settings[key] = [];
+state.settings[key].push(val);
+document.getElementById(inputId).value = ‘’;
+renderTags(tagId, state.settings[key], type);
+}
+
+function removeTag(type, index) {
+const map = {
+goal:    [‘goals’,              ‘goalTags’],
+avoid:   [‘avoid’,              ‘avoidTags’],
+allergy: [‘allergies’,          ‘allergyTags’],
+hormone: [‘hormoneIngredients’, ‘hormoneTags’],
+};
+const [key, tagId] = map[type];
+state.settings[key].splice(index, 1);
+renderTags(tagId, state.settings[key], type);
+}
+
+function saveSettings() {
+const s = state.settings;
+s.name        = document.getElementById(‘s-name’).value.trim();
+s.persons     = document.getElementById(‘s-persons’).value;
+s.diet        = document.getElementById(‘s-diet’).value;
+s.maxTime     = parseInt(document.getElementById(‘s-maxtime’).value) || 40;
+s.cuisine     = document.getElementById(‘s-cuisine’).value;
+s.seasonal    = document.getElementById(‘s-seasonal’).checked;
+s.season      = document.getElementById(‘s-season’).value;
+s.showNutrition = document.getElementById(‘s-nutrition’).checked;
+s.healthGoals = document.getElementById(‘s-health’).value.trim();
+s.style       = document.getElementById(‘s-style’).value.trim();
+s.extra       = document.getElementById(‘s-extra’).value.trim();
+if (s.seasonal) state.seasonFilter = getCurrentSeason();
+else state.seasonFilter = ‘alle’;
+if (s.name) document.getElementById(‘headerSub’).textContent = `Welkom terug, ${s.name}! 🌿`;
+renderAll(); scheduleSave();
+notify(‘✅ Instellingen opgeslagen!’);
+}
+
+// ─── UTILS ────────────────────────────────────────────────────────
+function shuffle(arr) {
+const a = […arr];
+for (let i = a.length - 1; i > 0; i–) {
+const j = Math.floor(Math.random() * (i + 1));
+[a[i], a[j]] = [a[j], a[i]];
+}
+return a;
+}
+
+// Close modal on background click
+document.getElementById(‘editorModal’).addEventListener(‘click’, function(e) {
+if (e.target === this) closeEditor();
+});
+
+// ─── BOOT ─────────────────────────────────────────────────────────
+initApp();
+</script>
+
+</body>
+</html>
