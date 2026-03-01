@@ -697,7 +697,7 @@ async function sendMagicLink() {
   if (!email) { showMsg(msg,'Vul je e-mailadres in.','error'); return; }
   btn.disabled = true; btn.textContent = 'Versturen...';
   const { error } = await supabase.auth.signInWithOtp({
-    email, options: { emailRedirectTo: window.location.href }
+    email, options: { emailRedirectTo: 'https://joepbraas.github.io' }
   });
   if (error) {
     showMsg(msg, 'Fout: ' + error.message, 'error');
