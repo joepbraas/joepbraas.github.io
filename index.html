@@ -551,6 +551,17 @@ animation:slideUp .3s ease;
           <div class="field"><label>Extra wensen</label><input type="text" id="s-extra" placeholder="bijv. weinig afwas..."></div>
         </div>
       </div>
+      <div class="settings-block">
+        <h3>🤖 AI Recepten</h3>
+        <div class="field">
+          <label>Anthropic API Sleutel</label>
+          <input type="password" id="s-apikey" placeholder="sk-ant-...">
+          <p style="font-size:11px;color:var(--text-lt);margin-top:6px;line-height:1.5">
+            Vul hier je <a href="https://console.anthropic.com" target="_blank" style="color:var(--sage-dk)">Anthropic API sleutel</a> in om het Genereer-knopje nieuwe, unieke recepten te laten aanmaken op basis van jouw voorkeuren.<br>
+            Of stel <code style="background:var(--warm);padding:1px 4px;border-radius:3px">ANTHROPIC_API_KEY</code> in als Supabase secret.
+          </p>
+        </div>
+      </div>
       <button class="save-main-btn" onclick="saveSettings()">💾 Instellingen opslaan</button>
     </div>
   </div>
@@ -683,7 +694,8 @@ let state = {
     avoid:['Tofu','Tomaatjes','Spruitjes'], allergies:[],
     hormoneIngredients:['Boerenkool','Broccoli','Zalm','Kikkererwten','Eieren','Avocado'],
     healthGoals:'Oestrogeen/progesteron balans, borstvoeding ondersteuning',
-    style:'Miljuschka', extra:'Gemakkelijk en snel'
+    style:'Miljuschka', extra:'Gemakkelijk en snel',
+    anthropicApiKey:''
   }
 };
 let currentUser = null;
@@ -1031,30 +1043,45 @@ function removeFromWeek(recipeId) {
   notify('🗑️ Verwijderd uit weekmenu');
 }
 
-function generateRecipes() {
+async function generateRecipes() {
   const btn = document.getElementById('genBtn');
   btn.disabled = true; btn.textContent = '✨ Genereren...';
 
   const s = state.settings;
+
+  // Probeer AI-generatie als er een API-sleutel is
+  if (s.anthropicApiKey) {
+    try {
+      btn.textContent = '🤖 AI aan het werk...';
+      const recipes = await callAIGenerate();
+      if (recipes && recipes.length > 0) {
+        // Voeg toe aan extraRecipes zodat ze bewaard blijven
+        state.extraRecipes = state.extraRecipes.filter(r => !r.id.startsWith('ai_'));
+        state.extraRecipes.push(...recipes);
+
+        state.weekRecipes = recipes.slice(0, 7).map((r, i) => ({...r, dayIndex: i}));
+        renderAll(); scheduleSave();
+        btn.disabled = false; btn.textContent = '✨ Genereer';
+        notify('🎉 AI heeft 7 nieuwe recepten gegenereerd!');
+        return;
+      }
+    } catch (e) {
+      console.warn('AI generatie mislukt, terug naar lokale selectie:', e.message);
+      notify('⚠️ ' + e.message);
+    }
+  } else {
+    notify('💡 Voeg een Anthropic API sleutel toe bij ⚙️ Instellingen voor AI-recepten.');
+  }
+
+  // Lokale fallback: seizoen + dieet + hormoon-prioriteit
   const hormoneLower = (s.hormoneIngredients || []).map(h => h.toLowerCase());
-
-  // 1. Gefilterde pool: seizoen + dieet + maxTime + avoid + allergieën
-  let pool = getFilteredPool();
-
-  // 2. Verwijder 👎-geratede recepten
-  pool = pool.filter(r => state.ratings[r.id]?.rating !== 'down');
-
-  // 3. Splits: hormoon-prioriteit vs rest
+  let pool = getFilteredPool().filter(r => state.ratings[r.id]?.rating !== 'down');
   const hormoonPool = pool.filter(r => {
     const ingText = (r.ingredients || []).join(' ').toLowerCase();
     return hormoneLower.some(h => ingText.includes(h));
   });
   const restPool = pool.filter(r => !hormoonPool.find(h => h.id === r.id));
-
-  // 4. Shuffle beide groepen apart, hormoon voorop
   const combined = [...shuffle(hormoonPool), ...shuffle(restPool)].slice(0, 7);
-
-  // 5. Fallback als te weinig recepten na filters
   let final = combined;
   if (final.length < 7) {
     const fallback = shuffle(getAllRecipes().filter(r =>
@@ -1062,12 +1089,120 @@ function generateRecipes() {
     ));
     final = [...combined, ...fallback].slice(0, 7);
   }
-
-  state.weekRecipes = final.map((r, i) => ({...r, dayIndex:i}));
+  state.weekRecipes = final.map((r, i) => ({...r, dayIndex: i}));
   renderAll(); scheduleSave();
   btn.disabled = false; btn.textContent = '✨ Genereer';
-  const hormCount = Math.min(hormoonPool.length, 7);
-  notify('🎉 Weekmenu gegenereerd!' + (hormCount > 0 ? ' (' + hormCount + ' hormoonrecepten)' : ''));
+  notify('🎉 Weekmenu gegenereerd!');
+}
+
+async function callAIGenerate() {
+  const s = state.settings;
+  if (!s.anthropicApiKey) throw new Error('Geen API sleutel ingesteld');
+
+  const season      = getCurrentSeason();
+  const diet        = s.diet        || 'alles';
+  const cuisine     = s.cuisine     || 'gemengd';
+  const maxTime     = s.maxTime     || 40;
+  const persons     = s.persons     || '2';
+  const avoid       = s.avoid       || [];
+  const allergies   = s.allergies   || [];
+  const hormones    = s.hormoneIngredients || [];
+  const healthGoals = s.healthGoals || '';
+  const style       = s.style       || 'huiselijk';
+  const extra       = s.extra       || '';
+  const goals       = s.goals       || [];
+
+  const avoidStr   = avoid.length     ? avoid.join(', ')   : 'geen';
+  const allergyStr = allergies.length ? allergies.join(', '): 'geen';
+  const hormoneStr = hormones.length  ? hormones.join(', ') : 'niet opgegeven';
+  const goalsStr   = goals.length     ? goals.join(', ')    : 'gezond eten';
+
+  const prompt = `Je bent een Nederlandse voedingsdeskundige en chef-kok. Genereer precies 7 unieke, gevarieerde en gezonde recepten als JSON array.
+
+Gebruikersvoorkeuren:
+- Seizoen: ${season}
+- Dieet: ${diet}
+- Favoriete keuken: ${cuisine}
+- Max bereidingstijd: ${maxTime} minuten
+- Aantal personen: ${persons}
+- Niet lekker / vermijden: ${avoidStr}
+- Allergieën: ${allergyStr}
+- Hormoonondersteunende ingrediënten: ${hormoneStr}
+- Gezondheidsdoelen: ${healthGoals || 'niet opgegeven'}
+- Receptstijl / inspiratiebron: ${style}
+- Extra wensen: ${extra || 'geen'}
+- Doelen: ${goalsStr}
+
+STRIKTE REGELS:
+1. Genereer altijd PRECIES 7 recepten
+2. Gebruik minimaal 4 van de hormoonondersteunende ingrediënten verspreid over de 7 recepten
+3. Volg het dieet strikt (${diet}): bij vegetarisch/vegan geen vlees of vis
+4. Vermijd ALTIJD deze ingrediënten: ${avoidStr}
+5. Vermijd ALTIJD deze allergenen: ${allergyStr}
+6. Alle recepten klaar binnen ${maxTime} minuten
+7. Varieer in type (Vis, Vlees, Vegetarisch) tenzij dieet anders vereist
+8. Schrijf alles in correct Nederlands
+9. Ingrediënten zijn voor ${persons} personen
+10. Maak de recepten seizoensgebonden (${season})
+11. Zorg voor variatie: geen twee vergelijkbare recepten
+
+Geef ALLEEN een geldige JSON array terug, geen uitleg of andere tekst:
+[
+  {
+    "name": "Naam van het gerecht",
+    "time": "25 min",
+    "type": "Vis",
+    "seasons": ["lente","zomer","herfst","winter"],
+    "nutrition": {"kcal": 520, "prot": 38, "carb": 42, "fat": 18},
+    "ingredients": ["2 zalmfilets", "150g quinoa", "1 broccoli (roosjes)"],
+    "steps": ["Verwarm de oven op 180°C.", "Bak de zalm 15 minuten."]
+  }
+]`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': s.anthropicApiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4096,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `API fout: ${res.status}`);
+  }
+
+  const data = await res.json();
+  const text = data.content?.[0]?.text || '';
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) throw new Error('AI gaf geen geldige JSON terug');
+
+  const recipes = JSON.parse(match[0]);
+  if (!Array.isArray(recipes) || recipes.length === 0) throw new Error('Geen recepten ontvangen');
+
+  const ts = Date.now();
+  return recipes.slice(0, 7).map((r, i) => ({
+    id: `ai_${ts}_${i}`,
+    name: String(r.name || 'Onbekend recept'),
+    time: String(r.time || '30 min'),
+    type: ['Vis', 'Vlees', 'Vegetarisch'].includes(String(r.type)) ? String(r.type) : 'Vegetarisch',
+    seasons: Array.isArray(r.seasons) ? r.seasons : ['lente', 'zomer', 'herfst', 'winter'],
+    nutrition: {
+      kcal: Number(r.nutrition?.kcal) || 0,
+      prot: Number(r.nutrition?.prot) || 0,
+      carb: Number(r.nutrition?.carb) || 0,
+      fat:  Number(r.nutrition?.fat)  || 0,
+    },
+    ingredients: Array.isArray(r.ingredients) ? r.ingredients.map(String) : [],
+    steps:       Array.isArray(r.steps)       ? r.steps.map(String)       : [],
+  }));
 }
 
 function remixWeek() {
@@ -1291,6 +1426,7 @@ renderTags(‘goalTags’, s.goals || [], ‘goal’);
 renderTags(‘avoidTags’, s.avoid || [], ‘avoid’);
 renderTags(‘allergyTags’, s.allergies || [], ‘allergy’);
 renderTags(‘hormoneTags’, s.hormoneIngredients || [], ‘hormone’);
+document.getElementById(‘s-apikey’).value = s.anthropicApiKey || ‘’;
 }
 
 function renderTags(containerId, items, type) {
@@ -1341,6 +1477,7 @@ s.showNutrition = document.getElementById(‘s-nutrition’).checked;
 s.healthGoals = document.getElementById(‘s-health’).value.trim();
 s.style       = document.getElementById(‘s-style’).value.trim();
 s.extra       = document.getElementById(‘s-extra’).value.trim();
+s.anthropicApiKey = document.getElementById(‘s-apikey’).value.trim();
 if (s.seasonal) state.seasonFilter = getCurrentSeason();
 else state.seasonFilter = ‘alle’;
 if (s.name) document.getElementById(‘headerSub’).textContent = `Welkom terug, ${s.name}! 🌿`;
