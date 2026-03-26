@@ -551,6 +551,17 @@ animation:slideUp .3s ease;
           <div class="field"><label>Extra wensen</label><input type="text" id="s-extra" placeholder="bijv. weinig afwas..."></div>
         </div>
       </div>
+      <div class="settings-block">
+        <h3>🤖 AI Recepten</h3>
+        <div class="field">
+          <label>Anthropic API Sleutel</label>
+          <input type="password" id="s-apikey" placeholder="sk-ant-...">
+          <p style="font-size:11px;color:var(--text-lt);margin-top:6px;line-height:1.5">
+            Vul hier je <a href="https://console.anthropic.com" target="_blank" style="color:var(--sage-dk)">Anthropic API sleutel</a> in om het Genereer-knopje nieuwe, unieke recepten te laten aanmaken op basis van jouw voorkeuren.<br>
+            Of stel <code style="background:var(--warm);padding:1px 4px;border-radius:3px">ANTHROPIC_API_KEY</code> in als Supabase secret.
+          </p>
+        </div>
+      </div>
       <button class="save-main-btn" onclick="saveSettings()">💾 Instellingen opslaan</button>
     </div>
   </div>
@@ -683,7 +694,8 @@ let state = {
     avoid:['Tofu','Tomaatjes','Spruitjes'], allergies:[],
     hormoneIngredients:['Boerenkool','Broccoli','Zalm','Kikkererwten','Eieren','Avocado'],
     healthGoals:'Oestrogeen/progesteron balans, borstvoeding ondersteuning',
-    style:'Miljuschka', extra:'Gemakkelijk en snel'
+    style:'Miljuschka', extra:'Gemakkelijk en snel',
+    anthropicApiKey:''
   }
 };
 let currentUser = null;
@@ -1031,30 +1043,45 @@ function removeFromWeek(recipeId) {
   notify('🗑️ Verwijderd uit weekmenu');
 }
 
-function generateRecipes() {
+async function generateRecipes() {
   const btn = document.getElementById('genBtn');
   btn.disabled = true; btn.textContent = '✨ Genereren...';
 
   const s = state.settings;
+
+  // Probeer AI-generatie als er een API-sleutel is
+  if (s.anthropicApiKey || true) { // 'true' zodat de edge function ook de server-side key kan gebruiken
+    try {
+      btn.textContent = '🤖 AI aan het werk...';
+      const recipes = await callAIGenerate();
+      if (recipes && recipes.length > 0) {
+        // Voeg toe aan extraRecipes zodat ze bewaard blijven
+        const newIds = new Set(recipes.map(r => r.id));
+        state.extraRecipes = state.extraRecipes.filter(r => !r.id.startsWith('ai_'));
+        state.extraRecipes.push(...recipes);
+
+        state.weekRecipes = recipes.slice(0, 7).map((r, i) => ({...r, dayIndex: i}));
+        renderAll(); scheduleSave();
+        btn.disabled = false; btn.textContent = '✨ Genereer';
+        notify('🎉 AI heeft 7 nieuwe recepten gegenereerd!');
+        return;
+      }
+    } catch (e) {
+      // Als AI mislukt, val terug op lokale selectie
+      console.warn('AI generatie mislukt, terug naar lokale selectie:', e.message);
+      notify('⚠️ AI niet beschikbaar, lokale recepten geselecteerd.');
+    }
+  }
+
+  // Lokale fallback: seizoen + dieet + hormoon-prioriteit
   const hormoneLower = (s.hormoneIngredients || []).map(h => h.toLowerCase());
-
-  // 1. Gefilterde pool: seizoen + dieet + maxTime + avoid + allergieën
-  let pool = getFilteredPool();
-
-  // 2. Verwijder 👎-geratede recepten
-  pool = pool.filter(r => state.ratings[r.id]?.rating !== 'down');
-
-  // 3. Splits: hormoon-prioriteit vs rest
+  let pool = getFilteredPool().filter(r => state.ratings[r.id]?.rating !== 'down');
   const hormoonPool = pool.filter(r => {
     const ingText = (r.ingredients || []).join(' ').toLowerCase();
     return hormoneLower.some(h => ingText.includes(h));
   });
   const restPool = pool.filter(r => !hormoonPool.find(h => h.id === r.id));
-
-  // 4. Shuffle beide groepen apart, hormoon voorop
   const combined = [...shuffle(hormoonPool), ...shuffle(restPool)].slice(0, 7);
-
-  // 5. Fallback als te weinig recepten na filters
   let final = combined;
   if (final.length < 7) {
     const fallback = shuffle(getAllRecipes().filter(r =>
@@ -1062,12 +1089,49 @@ function generateRecipes() {
     ));
     final = [...combined, ...fallback].slice(0, 7);
   }
-
-  state.weekRecipes = final.map((r, i) => ({...r, dayIndex:i}));
+  state.weekRecipes = final.map((r, i) => ({...r, dayIndex: i}));
   renderAll(); scheduleSave();
   btn.disabled = false; btn.textContent = '✨ Genereer';
-  const hormCount = Math.min(hormoonPool.length, 7);
-  notify('🎉 Weekmenu gegenereerd!' + (hormCount > 0 ? ' (' + hormCount + ' hormoonrecepten)' : ''));
+  notify('🎉 Weekmenu gegenereerd!');
+}
+
+async function callAIGenerate() {
+  const s = state.settings;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Niet ingelogd');
+
+  const preferences = {
+    season:              getCurrentSeason(),
+    diet:                s.diet        || 'alles',
+    cuisine:             s.cuisine     || 'gemengd',
+    maxTime:             s.maxTime     || 40,
+    persons:             s.persons     || '2',
+    avoid:               s.avoid       || [],
+    allergies:           s.allergies   || [],
+    hormoneIngredients:  s.hormoneIngredients || [],
+    healthGoals:         s.healthGoals || '',
+    style:               s.style       || '',
+    extra:               s.extra       || '',
+    goals:               s.goals       || [],
+  };
+
+  const EDGE_URL = `${SUPA_URL}/functions/v1/generate-recipes`;
+  const res = await fetch(EDGE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+      'apikey': SUPA_KEY,
+    },
+    body: JSON.stringify({
+      preferences,
+      userApiKey: s.anthropicApiKey || undefined,
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || 'Onbekende fout');
+  return data.recipes;
 }
 
 function remixWeek() {
@@ -1291,6 +1355,7 @@ renderTags(‘goalTags’, s.goals || [], ‘goal’);
 renderTags(‘avoidTags’, s.avoid || [], ‘avoid’);
 renderTags(‘allergyTags’, s.allergies || [], ‘allergy’);
 renderTags(‘hormoneTags’, s.hormoneIngredients || [], ‘hormone’);
+document.getElementById(‘s-apikey’).value = s.anthropicApiKey || ‘’;
 }
 
 function renderTags(containerId, items, type) {
@@ -1341,6 +1406,7 @@ s.showNutrition = document.getElementById(‘s-nutrition’).checked;
 s.healthGoals = document.getElementById(‘s-health’).value.trim();
 s.style       = document.getElementById(‘s-style’).value.trim();
 s.extra       = document.getElementById(‘s-extra’).value.trim();
+s.anthropicApiKey = document.getElementById(‘s-apikey’).value.trim();
 if (s.seasonal) state.seasonFilter = getCurrentSeason();
 else state.seasonFilter = ‘alle’;
 if (s.name) document.getElementById(‘headerSub’).textContent = `Welkom terug, ${s.name}! 🌿`;
