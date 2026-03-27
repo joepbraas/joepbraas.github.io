@@ -33,6 +33,7 @@
 }
 
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+button, .tab, .btn, .rate-btn, .season-pill { touch-action: manipulation; }
   body { font-family:'DM Sans', sans-serif; background:var(--cream); color:var(--text); min-height:100vh; }
   h1,h2,h3 { font-family:'Playfair Display', serif; }
 
@@ -347,14 +348,6 @@ animation:slideUp .3s ease;
 </head>
 <body>
 
-<!-- LOADING -->
-
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="loading-logo">🌿</div>
-  <div class="loading-text">Menu Planner</div>
-  <div class="loading-sub">Laden...</div>
-</div>
-
 <!-- LOGIN -->
 
 <div id="loginScreen" style="display:none">
@@ -614,6 +607,11 @@ animation:slideUp .3s ease;
 <div class="notif" id="notif"></div>
 
 <script>
+window.onerror = function(msg, src, line) {
+  document.body.insertAdjacentHTML('beforeend',
+    '<div style="position:fixed;top:0;left:0;right:0;padding:12px;background:#c0392b;color:white;z-index:99999;font-size:13px">Fout (r'+line+'): '+msg+'</div>'
+  );
+};
 // ─── SUPABASE ──────────────────────────────────────────────────────
 const SUPA_URL = 'https://zjechmjaxfipjiklbyyf.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqZWNobWpheGZpcGppa2xieXlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMzQ0MzEsImV4cCI6MjA4NzcxMDQzMX0.ZAVNPZLfI_LkVNfeJUphOUKkSjhrKm_BMH7_R5bvDjM';
@@ -1541,15 +1539,19 @@ if (e.target === this) closeEditor();
 });
 
 // ─── BOOT ─────────────────────────────────────────────────────────
-// Laad lokale data en render UI direct — werkt altijd, ook zonder JS-cache
-state.seasonFilter = getCurrentSeason();
-shuffleSuggestions();
-loadLocal();
-renderAll();
-if (state.settings.name) {
-  document.getElementById('headerSub').textContent = `Welkom terug, ${state.settings.name}! 🌿`;
+try {
+  state.seasonFilter = getCurrentSeason();
+  shuffleSuggestions();
+  loadLocal();
+  renderAll();
+  if (state.settings.name)
+    document.getElementById('headerSub').textContent = `Welkom terug, ${state.settings.name}! 🌿`;
+} catch(e) {
+  document.body.insertAdjacentHTML('beforeend',
+    '<div style="position:fixed;inset:0;background:white;z-index:9999;padding:20px;overflow:auto;font-size:13px">⚠️ Boot fout:<br><b>'+e.message+'</b><br><pre>'+e.stack+'</pre></div>'
+  );
 }
-initApp(); // Supabase cloud sync op de achtergrond
+initApp();
 </script>
 
 </body>
