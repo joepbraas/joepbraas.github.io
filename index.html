@@ -617,7 +617,10 @@ animation:slideUp .3s ease;
 // ─── SUPABASE ──────────────────────────────────────────────────────
 const SUPA_URL = 'https://zjechmjaxfipjiklbyyf.supabase.co';
 const SUPA_KEY = 'sb_publishable_Zh-oJvqBHcKbNBhVFmG4sw_jGgHa5on';
-const supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+let supabase = null;
+try {
+  if (window.supabase) supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+} catch(e) { console.warn('Supabase niet geladen:', e); }
 
 // ─── CONSTANTS ────────────────────────────────────────────────────
 const DAYS    = ['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
@@ -724,6 +727,34 @@ async function logout() {
   document.getElementById('loginScreen').style.display = 'flex';
 }
 
+// ─── LOCAL STORAGE FALLBACK ───────────────────────────────────────
+const LS_KEY = 'menuplanner_state';
+function saveLocal() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      weekRecipes:  state.weekRecipes,
+      favorites:    state.favorites.map(r => r.id),
+      ratings:      state.ratings,
+      extraRecipes: state.extraRecipes,
+      checkedItems: [...state.checkedItems],
+      settings:     state.settings,
+    }));
+  } catch(e) {}
+}
+function loadLocal() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LS_KEY));
+    if (!saved) return;
+    const pool = getAllRecipes();
+    if (saved.extraRecipes?.length) state.extraRecipes = saved.extraRecipes;
+    if (saved.weekRecipes?.length) state.weekRecipes = saved.weekRecipes;
+    if (saved.favorites?.length) state.favorites = saved.favorites.map(id => getAllRecipes().find(r=>r.id===id)).filter(Boolean);
+    if (saved.ratings) state.ratings = saved.ratings;
+    if (saved.checkedItems?.length) state.checkedItems = new Set(saved.checkedItems);
+    if (saved.settings) state.settings = {...state.settings, ...saved.settings};
+  } catch(e) {}
+}
+
 // ─── SUPABASE DATA ────────────────────────────────────────────────
 async function loadUserData() {
   if (!currentUser) return;
@@ -763,8 +794,13 @@ async function saveUserData() {
 
 function scheduleSave() {
   setSaveIndicator('💾...');
-  clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(saveUserData, 1200);
+  saveLocal();
+  if (supabase && currentUser) {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(saveUserData, 1200);
+  } else {
+    setSaveIndicator('✅ Opgeslagen');
+  }
 }
 
 function setSaveIndicator(msg) {
@@ -777,45 +813,42 @@ function getAllRecipes() { return [...BASE_RECIPES, ...state.extraRecipes]; }
 
 // ─── INIT ─────────────────────────────────────────────────────────
 async function initApp() {
-  // Fallback: als laden te lang duurt, toon inlogscherm
-  const loadingTimeout = setTimeout(() => {
-    document.getElementById('loadingOverlay').style.display = 'none';
-    document.getElementById('loginScreen').style.display = 'flex';
-  }, 8000);
+  // Laad lokale data direct — app werkt altijd, ook zonder internet
+  loadLocal();
+  document.getElementById('loadingOverlay').style.display = 'none';
+  showApp();
 
+  // Probeer Supabase op de achtergrond (optioneel, voor cloud sync)
+  if (!supabase) return;
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    clearTimeout(loadingTimeout);
-    document.getElementById('loadingOverlay').style.display = 'none';
+    const result = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+    ]);
+    const session = result?.data?.session;
     if (session?.user) {
       currentUser = session.user;
       await loadUserData();
-      showApp();
-    } else {
-      document.getElementById('loginScreen').style.display = 'flex';
+      renderAll();
+      if (state.settings.name) {
+        document.getElementById('headerSub').textContent = `Welkom terug, ${state.settings.name}! 🌿`;
+      }
     }
-  } catch (e) {
-    clearTimeout(loadingTimeout);
-    console.error('Init fout:', e);
-    document.getElementById('loadingOverlay').style.display = 'none';
-    document.getElementById('loginScreen').style.display = 'flex';
+  } catch(e) {
+    // Supabase niet bereikbaar — lokale data is al geladen, geen probleem
+    console.warn('Supabase sync mislukt:', e.message);
   }
 
   supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
       currentUser = session.user;
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('loadingOverlay').style.display = 'flex';
-      try {
-        await loadUserData();
-      } catch(e) { console.error(e); }
-      document.getElementById('loadingOverlay').style.display = 'none';
-      showApp();
+      try { await loadUserData(); } catch(e) { console.error(e); }
+      renderAll();
+      notify('☁️ Gesynchroniseerd met cloud');
     }
     if (event === 'SIGNED_OUT') {
       currentUser = null;
-      document.getElementById('appScreen').style.display = 'none';
-      document.getElementById('loginScreen').style.display = 'flex';
+      notify('Uitgelogd');
     }
   });
 }
