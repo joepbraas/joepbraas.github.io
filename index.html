@@ -39,7 +39,7 @@
 /* ── LOADING ──────────────────────────────────────────────────────── */
 #loadingOverlay {
 position:fixed; inset:0; background:var(--sage-dk);
-display:flex; align-items:center; justify-content:center;
+display:none; align-items:center; justify-content:center;
 flex-direction:column; gap:20px; color:white; z-index:9999;
 }
 .loading-logo { font-size:52px; animation: breathe 2s ease-in-out infinite; }
@@ -86,7 +86,7 @@ cursor:pointer; transition:all .2s; font-family:inherit; letter-spacing:0.3px;
 .login-msg.error   { color:var(--red); }
 
 /* ── APP SHELL ────────────────────────────────────────────────────── */
-#appScreen { display:none; }
+#appScreen { display:block; }
 
 .header {
 background:var(--sage-dk); color:white;
@@ -813,11 +813,6 @@ function getAllRecipes() { return [...BASE_RECIPES, ...state.extraRecipes]; }
 
 // ─── INIT ─────────────────────────────────────────────────────────
 async function initApp() {
-  // Laad lokale data direct — app werkt altijd, ook zonder internet
-  loadLocal();
-  document.getElementById('loadingOverlay').style.display = 'none';
-  showApp();
-
   // Probeer Supabase op de achtergrond (optioneel, voor cloud sync)
   if (!supabase) return;
   try {
@@ -1546,7 +1541,15 @@ if (e.target === this) closeEditor();
 });
 
 // ─── BOOT ─────────────────────────────────────────────────────────
-initApp();
+// Laad lokale data en render UI direct — werkt altijd, ook zonder JS-cache
+state.seasonFilter = getCurrentSeason();
+shuffleSuggestions();
+loadLocal();
+renderAll();
+if (state.settings.name) {
+  document.getElementById('headerSub').textContent = `Welkom terug, ${state.settings.name}! 🌿`;
+}
+initApp(); // Supabase cloud sync op de achtergrond
 </script>
 
 </body>
