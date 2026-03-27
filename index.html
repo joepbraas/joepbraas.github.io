@@ -32,7 +32,7 @@
   --shadow-lg: 0 8px 40px rgba(0,0,0,0.14);
 }
 
-- { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body { font-family:'DM Sans', sans-serif; background:var(--cream); color:var(--text); min-height:100vh; }
   h1,h2,h3 { font-family:'Playfair Display', serif; }
 
@@ -777,21 +777,38 @@ function getAllRecipes() { return [...BASE_RECIPES, ...state.extraRecipes]; }
 
 // ─── INIT ─────────────────────────────────────────────────────────
 async function initApp() {
-  const { data: { session } } = await supabase.auth.getSession();
-  document.getElementById('loadingOverlay').style.display = 'none';
-  if (session?.user) {
-    currentUser = session.user;
-    await loadUserData();
-    showApp();
-  } else {
+  // Fallback: als laden te lang duurt, toon inlogscherm
+  const loadingTimeout = setTimeout(() => {
+    document.getElementById('loadingOverlay').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+  }, 8000);
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    clearTimeout(loadingTimeout);
+    document.getElementById('loadingOverlay').style.display = 'none';
+    if (session?.user) {
+      currentUser = session.user;
+      await loadUserData();
+      showApp();
+    } else {
+      document.getElementById('loginScreen').style.display = 'flex';
+    }
+  } catch (e) {
+    clearTimeout(loadingTimeout);
+    console.error('Init fout:', e);
+    document.getElementById('loadingOverlay').style.display = 'none';
     document.getElementById('loginScreen').style.display = 'flex';
   }
+
   supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
       currentUser = session.user;
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('loadingOverlay').style.display = 'flex';
-      await loadUserData();
+      try {
+        await loadUserData();
+      } catch(e) { console.error(e); }
       document.getElementById('loadingOverlay').style.display = 'none';
       showApp();
     }
