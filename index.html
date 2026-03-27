@@ -417,7 +417,6 @@ animation:slideUp .3s ease;
       </div>
       <div id="weekGrid" class="recipe-grid"></div>
 
-```
   <div class="section-header">
     <div class="section-title">💡 Suggesties</div>
     <button class="btn btn-ghost" onclick="shuffleSuggestions()">🔄 Shuffle</button>
@@ -425,7 +424,6 @@ animation:slideUp .3s ease;
   <div id="seasonPills" class="season-pills"></div>
   <div id="suggestionsGrid" class="recipe-grid"></div>
 </div>
-```
 
   </div>
 
@@ -1300,12 +1298,9 @@ function recipeCard(r, opts={}) {
       </div>
       ${commentHTML}
       <textarea class="comment-box" id="comment-${r.id}" placeholder="Notitie..." rows="2">${rating.comment||''}</textarea>
-
-```
   <button class="btn btn-ghost" style="width:100%;margin-bottom:8px;font-size:10px" onclick="saveComment('${r.id}')">💬 Sla op</button>
   <div class="card-actions">${actions}</div>
 </div>`;
-```
 
 }
 
