@@ -33,8 +33,8 @@
 }
 
 - { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  body { font-family:‘DM Sans’, sans-serif; background:var(–cream); color:var(–text); min-height:100vh; }
-  h1,h2,h3 { font-family:‘Playfair Display’, serif; }
+  body { font-family:'DM Sans', sans-serif; background:var(–cream); color:var(–text); min-height:100vh; }
+  h1,h2,h3 { font-family:'Playfair Display', serif; }
 
 /* ── LOADING ──────────────────────────────────────────────────────── */
 #loadingOverlay {
@@ -44,7 +44,7 @@ flex-direction:column; gap:20px; color:white; z-index:9999;
 }
 .loading-logo { font-size:52px; animation: breathe 2s ease-in-out infinite; }
 @keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
-.loading-text { font-family:‘Playfair Display’,serif; font-size:22px; opacity:0.9; }
+.loading-text { font-family:'Playfair Display',serif; font-size:22px; opacity:0.9; }
 .loading-sub  { font-size:13px; opacity:0.6; }
 .spinner { width:32px; height:32px; border:3px solid rgba(255,255,255,0.3); border-top-color:white; border-radius:50%; animation:spin 0.8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
@@ -56,7 +56,7 @@ background:linear-gradient(160deg, var(–sage-dk) 0%, #2D5230 60%, #1A3A1C 100%
 padding:20px; position:relative; overflow:hidden;
 }
 #loginScreen::before {
-content:’’; position:absolute; inset:0;
+content:''; position:absolute; inset:0;
 background: radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.05) 0%, transparent 60%),
 radial-gradient(ellipse at 80% 20%, rgba(255,255,255,0.04) 0%, transparent 50%);
 }
@@ -66,7 +66,7 @@ width:100%; max-width:400px; box-shadow:var(–shadow-lg);
 position:relative; z-index:1;
 }
 .login-logo { font-size:56px; margin-bottom:16px; display:block; text-align:center; }
-.login-title { font-family:‘Playfair Display’,serif; font-size:28px; color:var(–sage-dk); text-align:center; margin-bottom:6px; }
+.login-title { font-family:'Playfair Display',serif; font-size:28px; color:var(–sage-dk); text-align:center; margin-bottom:6px; }
 .login-sub { font-size:14px; color:var(–text-lt); text-align:center; margin-bottom:32px; line-height:1.5; }
 .login-input {
 width:100%; padding:14px 16px; border:2px solid var(–border);
@@ -137,7 +137,7 @@ padding:14px; transition:all .2s; cursor:default;
 .card:hover { border-color:var(–sage); box-shadow:0 4px 16px rgba(124,158,122,0.15); transform:translateY(-2px); }
 .card.in-week { background:var(–sage-lt); border-color:var(–sage); }
 .card-header { margin-bottom:8px; }
-.card-name  { font-family:‘Playfair Display’,serif; font-size:14px; font-weight:700; color:var(–text); line-height:1.3; margin-bottom:3px; }
+.card-name  { font-family:'Playfair Display',serif; font-size:14px; font-weight:700; color:var(–text); line-height:1.3; margin-bottom:3px; }
 .card-meta  { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
 .chip { display:inline-flex; align-items:center; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:600; }
 .chip-time    { background:var(–warm); color:var(–text-lt); }
@@ -193,7 +193,7 @@ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-
 .week-banner h2 { font-size:20px; margin-bottom:4px; }
 .week-banner p  { font-size:13px; opacity:0.8; }
 .section-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
-.section-title { font-family:‘Playfair Display’,serif; font-size:18px; color:var(–text); }
+.section-title { font-family:'Playfair Display',serif; font-size:18px; color:var(–text); }
 .season-pills { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
 .season-pill {
 padding:5px 13px; border:1.5px solid var(–border); background:var(–white);
@@ -234,7 +234,7 @@ transition:all .2s; color:var(–text-lt);
 .progress-bar { height:6px; background:var(–border); border-radius:10px; overflow:hidden; }
 .progress-fill { height:100%; background:linear-gradient(90deg, var(–sage), var(–sage-dk)); transition:width .3s; }
 .grocery-cat { margin-bottom:24px; }
-.grocery-cat-title { font-family:‘Playfair Display’,serif; font-size:16px; color:var(–sage-dk); margin-bottom:10px; padding-bottom:8px; border-bottom:2px solid var(–sage-mid); display:flex; align-items:center; gap:8px; }
+.grocery-cat-title { font-family:'Playfair Display',serif; font-size:16px; color:var(–sage-dk); margin-bottom:10px; padding-bottom:8px; border-bottom:2px solid var(–sage-mid); display:flex; align-items:center; gap:8px; }
 .grocery-item { display:flex; align-items:center; padding:10px 12px; margin-bottom:4px; border-radius:10px; cursor:pointer; transition:all .2s; background:var(–white); border:1px solid transparent; }
 .grocery-item:hover { background:var(–cream); border-color:var(–border); }
 .grocery-item.checked { opacity:0.45; }
@@ -257,7 +257,7 @@ animation:slideUp .3s ease;
 }
 @keyframes slideUp { from{transform:translateY(60px);opacity:0} to{transform:translateY(0);opacity:1} }
 .editor-handle { width:40px; height:4px; background:var(–border); border-radius:4px; margin:0 auto 20px; }
-.editor-title { font-family:‘Playfair Display’,serif; font-size:22px; margin-bottom:20px; color:var(–text); }
+.editor-title { font-family:'Playfair Display',serif; font-size:22px; margin-bottom:20px; color:var(–text); }
 .field { margin-bottom:14px; }
 .field label { display:block; font-size:11px; font-weight:600; color:var(–text-lt); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.6px; }
 .field input, .field textarea, .field select {
@@ -1311,19 +1311,19 @@ function recipeCard(r, opts={}) {
 
 // ─── RECIPE DETAIL ────────────────────────────────────────────────
 function recipeDetail(r) {
-const nutHTML = state.settings.showNutrition && r.nutrition ? ` <div class="nut-detail-row"> <div class="nd kcal"><div class="nd-v">${r.nutrition.kcal}</div><div class="nd-l">kcal</div></div> <div class="nd prot"><div class="nd-v">${r.nutrition.prot}g</div><div class="nd-l">Eiwit</div></div> <div class="nd carb"><div class="nd-v">${r.nutrition.carb}g</div><div class="nd-l">Koolh.</div></div> <div class="nd fat"><div class="nd-v">${r.nutrition.fat}g</div><div class="nd-l">Vet</div></div> </div>` : ‘’;
+const nutHTML = state.settings.showNutrition && r.nutrition ? ` <div class="nut-detail-row"> <div class="nd kcal"><div class="nd-v">${r.nutrition.kcal}</div><div class="nd-l">kcal</div></div> <div class="nd prot"><div class="nd-v">${r.nutrition.prot}g</div><div class="nd-l">Eiwit</div></div> <div class="nd carb"><div class="nd-v">${r.nutrition.carb}g</div><div class="nd-l">Koolh.</div></div> <div class="nd fat"><div class="nd-v">${r.nutrition.fat}g</div><div class="nd-l">Vet</div></div> </div>` : '';
 
-return `<div class="recipe-detail"> <div class="recipe-detail-meta"> <span class="chip chip-time">⏱ ${r.time}</span> ${r.type ?`<span class="chip ${r.type==='Vis'?'chip-type-vis':r.type==='Vlees'?'chip-type-vlees':'chip-type-veg'}">${r.type}</span>`: ''} </div> ${nutHTML} ${r.ingredients?.length ?`<div class="detail-section"><h3>Ingrediënten (${state.settings.persons || 2} personen)</h3><ul class="ing-list">${r.ingredients.map(i=>`<li>${i}</li>`).join(’’)}</ul></div>`: ''} ${r.steps?.length ?`<div class="detail-section"><h3>Bereiding</h3><ol class="step-list">${r.steps.map(s=>`<li>${s}</li>`).join(’’)}</ol></div>` : ''} </div>`;
+return `<div class="recipe-detail"> <div class="recipe-detail-meta"> <span class="chip chip-time">⏱ ${r.time}</span> ${r.type ?`<span class="chip ${r.type==='Vis'?'chip-type-vis':r.type==='Vlees'?'chip-type-vlees':'chip-type-veg'}">${r.type}</span>`: ''} </div> ${nutHTML} ${r.ingredients?.length ?`<div class="detail-section"><h3>Ingrediënten (${state.settings.persons || 2} personen)</h3><ul class="ing-list">${r.ingredients.map(i=>`<li>${i}</li>`).join('')}</ul></div>`: ''} ${r.steps?.length ?`<div class="detail-section"><h3>Bereiding</h3><ol class="step-list">${r.steps.map(s=>`<li>${s}</li>`).join('')}</ol></div>` : ''} </div>`;
 }
 
 function showRecipeDetail(id) {
 const r = getAllRecipes().find(x => x.id === id);
 if (!r) return;
 // Show in a simple modal overlay reuse
-const modal = document.getElementById(‘editorModal’);
-const sheet = document.getElementById(‘editorSheet’);
+const modal = document.getElementById('editorModal');
+const sheet = document.getElementById('editorSheet');
 sheet.innerHTML = ` <div class="modal-header"> <h2 style="font-family:'Playfair Display',serif;font-size:20px">${r.name}</h2> <button class="close-btn" onclick="closeEditor()">✕</button> </div> ${recipeDetail(r)}`;
-modal.classList.add(‘open’);
+modal.classList.add('open');
 }
 
 // ─── RECIPE EDITOR ────────────────────────────────────────────────
@@ -1332,49 +1332,49 @@ const isNew = !recipeId;
 state.editingRecipeId = recipeId || null;
 
 // Rebuild editor form
-document.getElementById(‘editorModal’).classList.add(‘open’);
+document.getElementById('editorModal').classList.add('open');
 
 // Re-inject form HTML
-document.getElementById(‘editorSheet’).innerHTML = `<div class="modal-header"> <h2>${isNew ? 'Nieuw recept toevoegen' : 'Recept bewerken'}</h2> <button class="close-btn" onclick="closeEditor()">✕</button> </div> <div class="field-row"> <div class="field" style="flex:2"><label>Naam</label><input type="text" id="e-name" placeholder="Naam van het gerecht"></div> <div class="field"><label>Tijd</label><input type="text" id="e-time" placeholder="25 min"></div> </div> <div class="field-row"> <div class="field"><label>Type</label> <select id="e-type"><option value="Vis">🐟 Vis</option><option value="Vlees">🍗 Vlees</option><option value="Vegetarisch">🥗 Vegetarisch</option></select> </div> </div> <div class="field-row"> <div class="field"><label>Calorieën</label><input type="number" id="e-kcal" placeholder="500"></div> <div class="field"><label>Eiwit (g)</label><input type="number" id="e-prot" placeholder="30"></div> <div class="field"><label>Koolh. (g)</label><input type="number" id="e-carb" placeholder="45"></div> <div class="field"><label>Vet (g)</label><input type="number" id="e-fat" placeholder="18"></div> </div> <div class="field"><label>Ingrediënten (voor 2 personen, 1 per regel)</label> <textarea id="e-ingredients" rows="6" placeholder="2 zalmfilets&#10;150g quinoa&#10;..."></textarea> </div> <div class="field"><label>Bereidingsstappen (1 per regel)</label> <textarea id="e-steps" rows="6" placeholder="Verwarm de oven op 180°C.&#10;..."></textarea> </div> <div style="display:flex;gap:10px;margin-top:4px"> <button class="btn btn-primary btn-lg" style="flex:1" onclick="saveRecipe()">💾 Opslaan</button> ${!isNew ?`<button class="btn btn-danger btn-lg" onclick="deleteRecipe()">🗑️</button>` : ''} </div>`;
+document.getElementById('editorSheet').innerHTML = `<div class="modal-header"> <h2>${isNew ? 'Nieuw recept toevoegen' : 'Recept bewerken'}</h2> <button class="close-btn" onclick="closeEditor()">✕</button> </div> <div class="field-row"> <div class="field" style="flex:2"><label>Naam</label><input type="text" id="e-name" placeholder="Naam van het gerecht"></div> <div class="field"><label>Tijd</label><input type="text" id="e-time" placeholder="25 min"></div> </div> <div class="field-row"> <div class="field"><label>Type</label> <select id="e-type"><option value="Vis">🐟 Vis</option><option value="Vlees">🍗 Vlees</option><option value="Vegetarisch">🥗 Vegetarisch</option></select> </div> </div> <div class="field-row"> <div class="field"><label>Calorieën</label><input type="number" id="e-kcal" placeholder="500"></div> <div class="field"><label>Eiwit (g)</label><input type="number" id="e-prot" placeholder="30"></div> <div class="field"><label>Koolh. (g)</label><input type="number" id="e-carb" placeholder="45"></div> <div class="field"><label>Vet (g)</label><input type="number" id="e-fat" placeholder="18"></div> </div> <div class="field"><label>Ingrediënten (voor 2 personen, 1 per regel)</label> <textarea id="e-ingredients" rows="6" placeholder="2 zalmfilets&#10;150g quinoa&#10;..."></textarea> </div> <div class="field"><label>Bereidingsstappen (1 per regel)</label> <textarea id="e-steps" rows="6" placeholder="Verwarm de oven op 180°C.&#10;..."></textarea> </div> <div style="display:flex;gap:10px;margin-top:4px"> <button class="btn btn-primary btn-lg" style="flex:1" onclick="saveRecipe()">💾 Opslaan</button> ${!isNew ?`<button class="btn btn-danger btn-lg" onclick="deleteRecipe()">🗑️</button>` : ''} </div>`;
 
 if (!isNew) {
 const r = getAllRecipes().find(x => x.id === recipeId);
 if (r) {
-document.getElementById(‘e-name’).value = r.name || ‘’;
-document.getElementById(‘e-time’).value = r.time || ‘’;
-document.getElementById(‘e-type’).value = r.type || ‘Vegetarisch’;
-document.getElementById(‘e-kcal’).value = r.nutrition?.kcal || ‘’;
-document.getElementById(‘e-prot’).value = r.nutrition?.prot || ‘’;
-document.getElementById(‘e-carb’).value = r.nutrition?.carb || ‘’;
-document.getElementById(‘e-fat’).value = r.nutrition?.fat || ‘’;
-document.getElementById(‘e-ingredients’).value = (r.ingredients || []).join(’\n’);
-document.getElementById(‘e-steps’).value = (r.steps || []).join(’\n’);
+document.getElementById('e-name').value = r.name || '';
+document.getElementById('e-time').value = r.time || '';
+document.getElementById('e-type').value = r.type || 'Vegetarisch';
+document.getElementById('e-kcal').value = r.nutrition?.kcal || '';
+document.getElementById('e-prot').value = r.nutrition?.prot || '';
+document.getElementById('e-carb').value = r.nutrition?.carb || '';
+document.getElementById('e-fat').value = r.nutrition?.fat || '';
+document.getElementById('e-ingredients').value = (r.ingredients || []).join('\n');
+document.getElementById('e-steps').value = (r.steps || []).join('\n');
 }
 }
 }
 
 function closeEditor() {
-document.getElementById(‘editorModal’).classList.remove(‘open’);
+document.getElementById('editorModal').classList.remove('open');
 state.editingRecipeId = null;
 }
 
 function saveRecipe() {
-const name = document.getElementById(‘e-name’)?.value.trim();
-if (!name) { notify(‘❌ Vul een naam in’, ‘error’); return; }
+const name = document.getElementById('e-name')?.value.trim();
+if (!name) { notify('❌ Vul een naam in', 'error'); return; }
 const recipe = {
-id: state.editingRecipeId || ‘custom_’ + Date.now(),
+id: state.editingRecipeId || 'custom_' + Date.now(),
 name,
-time: document.getElementById(‘e-time’)?.value.trim() || ‘30 min’,
-type: document.getElementById(‘e-type’)?.value || ‘Vegetarisch’,
-seasons: [‘lente’,‘zomer’,‘herfst’,‘winter’],
+time: document.getElementById('e-time')?.value.trim() || '30 min',
+type: document.getElementById('e-type')?.value || 'Vegetarisch',
+seasons: ['lente','zomer','herfst','winter'],
 nutrition: {
-kcal: parseInt(document.getElementById(‘e-kcal’)?.value) || 0,
-prot: parseInt(document.getElementById(‘e-prot’)?.value) || 0,
-carb: parseInt(document.getElementById(‘e-carb’)?.value) || 0,
-fat:  parseInt(document.getElementById(‘e-fat’)?.value)  || 0,
+kcal: parseInt(document.getElementById('e-kcal')?.value) || 0,
+prot: parseInt(document.getElementById('e-prot')?.value) || 0,
+carb: parseInt(document.getElementById('e-carb')?.value) || 0,
+fat:  parseInt(document.getElementById('e-fat')?.value)  || 0,
 },
-ingredients: (document.getElementById(‘e-ingredients’)?.value || ‘’).split(’\n’).map(s=>s.trim()).filter(Boolean),
-steps: (document.getElementById(‘e-steps’)?.value || ‘’).split(’\n’).map(s=>s.trim()).filter(Boolean),
+ingredients: (document.getElementById('e-ingredients')?.value || '').split('\n').map(s=>s.trim()).filter(Boolean),
+steps: (document.getElementById('e-steps')?.value || '').split('\n').map(s=>s.trim()).filter(Boolean),
 };
 
 if (state.editingRecipeId) {
@@ -1393,7 +1393,7 @@ closeEditor();
 renderAll();
 renderAllRecipes();
 scheduleSave();
-notify(‘✅ Recept opgeslagen!’);
+notify('✅ Recept opgeslagen!');
 }
 
 function deleteRecipe() {
@@ -1405,59 +1405,59 @@ closeEditor();
 renderAll();
 renderAllRecipes();
 scheduleSave();
-notify(‘🗑️ Recept verwijderd’);
+notify('🗑️ Recept verwijderd');
 }
 
 // ─── SETTINGS ─────────────────────────────────────────────────────
 function populateSettingsForm() {
 const s = state.settings;
-document.getElementById(‘s-name’).value = s.name || ‘’;
-document.getElementById(‘s-persons’).value = s.persons || ‘2’;
-document.getElementById(‘s-diet’).value = s.diet || ‘alles’;
-document.getElementById(‘s-maxtime’).value = s.maxTime || 40;
-document.getElementById(‘s-cuisine’).value = s.cuisine || ‘gemengd’;
-document.getElementById(‘s-seasonal’).checked = s.seasonal !== false;
-document.getElementById(‘s-season’).value = s.season || ‘auto’;
-document.getElementById(‘s-nutrition’).checked = s.showNutrition !== false;
-document.getElementById(‘s-health’).value = s.healthGoals || ‘’;
-document.getElementById(‘s-style’).value = s.style || ‘’;
-document.getElementById(‘s-extra’).value = s.extra || ‘’;
-renderTags(‘goalTags’, s.goals || [], ‘goal’);
-renderTags(‘avoidTags’, s.avoid || [], ‘avoid’);
-renderTags(‘allergyTags’, s.allergies || [], ‘allergy’);
-renderTags(‘hormoneTags’, s.hormoneIngredients || [], ‘hormone’);
-document.getElementById(‘s-apikey’).value = s.anthropicApiKey || ‘’;
+document.getElementById('s-name').value = s.name || '';
+document.getElementById('s-persons').value = s.persons || '2';
+document.getElementById('s-diet').value = s.diet || 'alles';
+document.getElementById('s-maxtime').value = s.maxTime || 40;
+document.getElementById('s-cuisine').value = s.cuisine || 'gemengd';
+document.getElementById('s-seasonal').checked = s.seasonal !== false;
+document.getElementById('s-season').value = s.season || 'auto';
+document.getElementById('s-nutrition').checked = s.showNutrition !== false;
+document.getElementById('s-health').value = s.healthGoals || '';
+document.getElementById('s-style').value = s.style || '';
+document.getElementById('s-extra').value = s.extra || '';
+renderTags('goalTags', s.goals || [], 'goal');
+renderTags('avoidTags', s.avoid || [], 'avoid');
+renderTags('allergyTags', s.allergies || [], 'allergy');
+renderTags('hormoneTags', s.hormoneIngredients || [], 'hormone');
+document.getElementById('s-apikey').value = s.anthropicApiKey || '';
 }
 
 function renderTags(containerId, items, type) {
-const cls = type === ‘avoid’ ? ‘avoid-tag’ : type === ‘allergy’ ? ‘allergy-tag’ : ‘’;
+const cls = type === 'avoid' ? 'avoid-tag' : type === 'allergy' ? 'allergy-tag' : '';
 document.getElementById(containerId).innerHTML = items.map((t,i) =>
 `<span class="tag ${cls}">${t}<span class="remove-tag" onclick="removeTag('${type}',${i})">×</span></span>`
-).join(’’);
+).join('');
 }
 
 function addTag(type) {
 const map = {
-goal:    [‘goalInput’,    ‘goals’,              ‘goalTags’],
-avoid:   [‘avoidInput’,   ‘avoid’,              ‘avoidTags’],
-allergy: [‘allergyInput’, ‘allergies’,          ‘allergyTags’],
-hormone: [‘hormoneInput’, ‘hormoneIngredients’, ‘hormoneTags’],
+goal:    ['goalInput',    'goals',              'goalTags'],
+avoid:   ['avoidInput',   'avoid',              'avoidTags'],
+allergy: ['allergyInput', 'allergies',          'allergyTags'],
+hormone: ['hormoneInput', 'hormoneIngredients', 'hormoneTags'],
 };
 const [inputId, key, tagId] = map[type];
 const val = document.getElementById(inputId)?.value.trim();
 if (!val) return;
 if (!state.settings[key]) state.settings[key] = [];
 state.settings[key].push(val);
-document.getElementById(inputId).value = ‘’;
+document.getElementById(inputId).value = '';
 renderTags(tagId, state.settings[key], type);
 }
 
 function removeTag(type, index) {
 const map = {
-goal:    [‘goals’,              ‘goalTags’],
-avoid:   [‘avoid’,              ‘avoidTags’],
-allergy: [‘allergies’,          ‘allergyTags’],
-hormone: [‘hormoneIngredients’, ‘hormoneTags’],
+goal:    ['goals',              'goalTags'],
+avoid:   ['avoid',              'avoidTags'],
+allergy: ['allergies',          'allergyTags'],
+hormone: ['hormoneIngredients', 'hormoneTags'],
 };
 const [key, tagId] = map[type];
 state.settings[key].splice(index, 1);
@@ -1466,23 +1466,23 @@ renderTags(tagId, state.settings[key], type);
 
 function saveSettings() {
 const s = state.settings;
-s.name        = document.getElementById(‘s-name’).value.trim();
-s.persons     = document.getElementById(‘s-persons’).value;
-s.diet        = document.getElementById(‘s-diet’).value;
-s.maxTime     = parseInt(document.getElementById(‘s-maxtime’).value) || 40;
-s.cuisine     = document.getElementById(‘s-cuisine’).value;
-s.seasonal    = document.getElementById(‘s-seasonal’).checked;
-s.season      = document.getElementById(‘s-season’).value;
-s.showNutrition = document.getElementById(‘s-nutrition’).checked;
-s.healthGoals = document.getElementById(‘s-health’).value.trim();
-s.style       = document.getElementById(‘s-style’).value.trim();
-s.extra       = document.getElementById(‘s-extra’).value.trim();
-s.anthropicApiKey = document.getElementById(‘s-apikey’).value.trim();
+s.name        = document.getElementById('s-name').value.trim();
+s.persons     = document.getElementById('s-persons').value;
+s.diet        = document.getElementById('s-diet').value;
+s.maxTime     = parseInt(document.getElementById('s-maxtime').value) || 40;
+s.cuisine     = document.getElementById('s-cuisine').value;
+s.seasonal    = document.getElementById('s-seasonal').checked;
+s.season      = document.getElementById('s-season').value;
+s.showNutrition = document.getElementById('s-nutrition').checked;
+s.healthGoals = document.getElementById('s-health').value.trim();
+s.style       = document.getElementById('s-style').value.trim();
+s.extra       = document.getElementById('s-extra').value.trim();
+s.anthropicApiKey = document.getElementById('s-apikey').value.trim();
 if (s.seasonal) state.seasonFilter = getCurrentSeason();
-else state.seasonFilter = ‘alle’;
-if (s.name) document.getElementById(‘headerSub’).textContent = `Welkom terug, ${s.name}! 🌿`;
+else state.seasonFilter = 'alle';
+if (s.name) document.getElementById('headerSub').textContent = `Welkom terug, ${s.name}! 🌿`;
 renderAll(); scheduleSave();
-notify(‘✅ Instellingen opgeslagen!’);
+notify('✅ Instellingen opgeslagen!');
 }
 
 // ─── UTILS ────────────────────────────────────────────────────────
@@ -1496,7 +1496,7 @@ return a;
 }
 
 // Close modal on background click
-document.getElementById(‘editorModal’).addEventListener(‘click’, function(e) {
+document.getElementById('editorModal').addEventListener('click', function(e) {
 if (e.target === this) closeEditor();
 });
 
