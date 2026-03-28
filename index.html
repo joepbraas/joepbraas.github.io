@@ -615,9 +615,9 @@ window.onerror = function(msg, src, line) {
 // ─── SUPABASE ──────────────────────────────────────────────────────
 const SUPA_URL = 'https://zjechmjaxfipjiklbyyf.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqZWNobWpheGZpcGppa2xieXlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIxMzQ0MzEsImV4cCI6MjA4NzcxMDQzMX0.ZAVNPZLfI_LkVNfeJUphOUKkSjhrKm_BMH7_R5bvDjM';
-let supabase = null;
+let supabaseClient = null;
 try {
-  if (window.supabase) supabase = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+  if (window.supabase) supabaseClient = window.supabase.createClient(SUPA_URL, SUPA_KEY);
 } catch(e) { console.warn('Supabase niet geladen:', e); }
 
 // ─── CONSTANTS ────────────────────────────────────────────────────
@@ -707,7 +707,7 @@ async function sendMagicLink() {
   const btn = document.getElementById('loginBtn');
   if (!email) { showMsg(msg,'Vul je e-mailadres in.','error'); return; }
   btn.disabled = true; btn.textContent = 'Versturen...';
-  const { error } = await supabase.auth.signInWithOtp({
+  const { error } = await supabaseClient.auth.signInWithOtp({
     email, options: { emailRedirectTo: 'https://joepbraas.github.io' }
   });
   if (error) {
@@ -720,7 +720,7 @@ async function sendMagicLink() {
 function showMsg(el, txt, cls) { el.textContent = txt; el.className = 'login-msg ' + cls; }
 
 async function logout() {
-  await supabase.auth.signOut();
+  await supabaseClient.auth.signOut();
   document.getElementById('appScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
 }
@@ -757,7 +757,7 @@ function loadLocal() {
 async function loadUserData() {
   if (!currentUser) return;
   try {
-    const { data, error } = await supabase.from('user_data').select('*').eq('user_id', currentUser.id).single();
+    const { data, error } = await supabaseClient.from('user_data').select('*').eq('user_id', currentUser.id).single();
     if (error && error.code !== 'PGRST116') return;
     if (!data) return;
     const pool = getAllRecipes();
@@ -776,7 +776,7 @@ async function loadUserData() {
 async function saveUserData() {
   if (!currentUser) return;
   try {
-    await supabase.from('user_data').upsert({
+    await supabaseClient.from('user_data').upsert({
       user_id: currentUser.id,
       week_recipes: state.weekRecipes.map(r=>({id:r.id,dayIndex:r.dayIndex})),
       favorites: state.favorites.map(r=>r.id),
@@ -793,7 +793,7 @@ async function saveUserData() {
 function scheduleSave() {
   setSaveIndicator('💾...');
   saveLocal();
-  if (supabase && currentUser) {
+  if (supabaseClient && currentUser) {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(saveUserData, 1200);
   } else {
@@ -812,10 +812,10 @@ function getAllRecipes() { return [...BASE_RECIPES, ...state.extraRecipes]; }
 // ─── INIT ─────────────────────────────────────────────────────────
 async function initApp() {
   // Probeer Supabase op de achtergrond (optioneel, voor cloud sync)
-  if (!supabase) return;
+  if (!supabaseClient) return;
   try {
     const result = await Promise.race([
-      supabase.auth.getSession(),
+      supabaseClient.auth.getSession(),
       new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
     ]);
     const session = result?.data?.session;
@@ -832,7 +832,7 @@ async function initApp() {
     console.warn('Supabase sync mislukt:', e.message);
   }
 
-  supabase.auth.onAuthStateChange(async (event, session) => {
+  supabaseClient.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
       currentUser = session.user;
       try { await loadUserData(); } catch(e) { console.error(e); }
