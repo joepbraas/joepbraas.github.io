@@ -374,7 +374,7 @@ animation:slideUp .3s ease;
       </div>
       <div class="header-right">
         <span class="save-badge" id="saveIndicator"></span>
-        <button class="icon-btn" onclick="logout()">Uitloggen</button>
+        <button class="icon-btn" id="authBtn" onclick="toggleAuth()">Inloggen</button>
       </div>
     </div>
   </div>
@@ -719,10 +719,20 @@ async function sendMagicLink() {
 }
 function showMsg(el, txt, cls) { el.textContent = txt; el.className = 'login-msg ' + cls; }
 
-async function logout() {
-  await supabaseClient.auth.signOut();
-  document.getElementById('appScreen').style.display = 'none';
-  document.getElementById('loginScreen').style.display = 'flex';
+function toggleAuth() {
+  if (currentUser) {
+    if (supabaseClient) supabaseClient.auth.signOut();
+    currentUser = null;
+    updateAuthBtn();
+    notify('Uitgelogd');
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+  }
+}
+
+function updateAuthBtn() {
+  const btn = document.getElementById('authBtn');
+  if (btn) btn.textContent = currentUser ? 'Uitloggen' : '☁️ Inloggen';
 }
 
 // ─── LOCAL STORAGE FALLBACK ───────────────────────────────────────
@@ -835,12 +845,15 @@ async function initApp() {
   supabaseClient.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
       currentUser = session.user;
+      document.getElementById('loginScreen').style.display = 'none';
       try { await loadUserData(); } catch(e) { console.error(e); }
       renderAll();
+      updateAuthBtn();
       notify('☁️ Gesynchroniseerd met cloud');
     }
     if (event === 'SIGNED_OUT') {
       currentUser = null;
+      updateAuthBtn();
       notify('Uitgelogd');
     }
   });
@@ -1546,6 +1559,7 @@ try {
   renderAll();
   if (state.settings.name)
     document.getElementById('headerSub').textContent = `Welkom terug, ${state.settings.name}! 🌿`;
+  updateAuthBtn();
 } catch(e) {
   document.body.insertAdjacentHTML('beforeend',
     '<div style="position:fixed;inset:0;background:white;z-index:9999;padding:20px;overflow:auto;font-size:13px">⚠️ Boot fout:<br><b>'+e.message+'</b><br><pre>'+e.stack+'</pre></div>'
