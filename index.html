@@ -1552,6 +1552,15 @@ if (e.target === this) closeEditor();
 });
 
 // ─── BOOT ─────────────────────────────────────────────────────────
+// Check for auth error in URL (e.g. expired magic link)
+(function() {
+  const hash = window.location.hash;
+  if (hash.includes('error=')) {
+    const desc = new URLSearchParams(hash.slice(1)).get('error_description') || 'Inloglink verlopen';
+    notify('⚠️ ' + decodeURIComponent(desc).replace(/\+/g,' ') + ' — vraag een nieuwe link aan.', 'error');
+    history.replaceState(null, '', window.location.pathname);
+  }
+})();
 try {
   state.seasonFilter = getCurrentSeason();
   shuffleSuggestions();
