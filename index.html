@@ -400,6 +400,29 @@ animation:slideUp .3s ease;
   </div>
 </div>
 
+<!-- IMPORT MODAL -->
+
+<div id="importModal" class="modal-bg">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>🔗 Recept importeren</h2>
+      <button class="close-btn" onclick="closeImport()">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--text-lt);margin-bottom:16px;line-height:1.5">
+      Plak de URL van een recept. Claude extraheert de ingrediënten en stappen automatisch.
+    </p>
+    <div class="field">
+      <label>Recept URL</label>
+      <input type="url" id="importUrl" class="login-input" style="margin-bottom:0" placeholder="https://www.lekkerkoken.nl/recept/...">
+    </div>
+    <div id="importStatus" style="font-size:13px;color:var(--text-lt);min-height:20px;margin:12px 0"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary btn-lg" style="flex:1" id="importBtn" onclick="importRecipeFromUrl()">✨ Importeer</button>
+      <button class="btn btn-ghost btn-lg" onclick="closeImport()">Annuleren</button>
+    </div>
+  </div>
+</div>
+
 <!-- APP -->
 
 <div id="appScreen">
@@ -493,7 +516,10 @@ animation:slideUp .3s ease;
     <div class="page">
       <div class="section-header">
         <div class="section-title">📖 Alle Recepten</div>
-        <button class="btn btn-primary" onclick="openEditor()">+ Nieuw recept</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="openImport()">🔗 Importeer</button>
+          <button class="btn btn-primary" onclick="openEditor()">+ Nieuw recept</button>
+        </div>
       </div>
       <div id="allRecipesGrid" class="recipe-grid"></div>
     </div>
@@ -814,6 +840,173 @@ document.getElementById('warnModal').addEventListener('click', function(e) {
   if (e.target === this) closeWarning();
 });
 
+// ─── IMPORT RECIPE ────────────────────────────────────────────────
+function openImport() {
+  document.getElementById('importUrl').value = '';
+  document.getElementById('importStatus').textContent = '';
+  const btn = document.getElementById('importBtn');
+  if (btn) { btn.disabled = false; btn.textContent = '✨ Importeer'; }
+  document.getElementById('importModal').classList.add('open');
+}
+
+function closeImport() {
+  document.getElementById('importModal').classList.remove('open');
+}
+
+document.getElementById('importModal').addEventListener('click', function(e) {
+  if (e.target === this) closeImport();
+});
+
+async function importRecipeFromUrl() {
+  const url = document.getElementById('importUrl').value.trim();
+  const statusEl = document.getElementById('importStatus');
+  const btn = document.getElementById('importBtn');
+
+  if (!url) { statusEl.textContent = '⚠️ Vul een URL in.'; return; }
+  if (!url.startsWith('http')) { statusEl.textContent = '⚠️ Voer een geldige URL in (begin met https://).'; return; }
+  if (!state.settings.anthropicApiKey) {
+    closeImport();
+    showWarning('🤖', 'API sleutel ontbreekt', 'Voeg je Anthropic API sleutel toe bij ⚙️ Instellingen om recepten te importeren.', 'Naar instellingen', () => showTab('instellingen'));
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = '⏳ Bezig...';
+  statusEl.textContent = '⏳ Pagina ophalen...';
+
+  try {
+    const jinaRes = await fetch('https://r.jina.ai/' + url, {
+      headers: { 'Accept': 'text/plain' }
+    });
+    if (!jinaRes.ok) throw new Error('Kon pagina niet ophalen (status ' + jinaRes.status + ')');
+    const pageText = await jinaRes.text();
+
+    statusEl.textContent = '🤖 Claude extraheert recept...';
+    const recipe = await callAIExtract(pageText.slice(0, 8000));
+
+    closeImport();
+    openEditorWithData(recipe);
+    notify('✅ Recept geïmporteerd! Controleer en sla op.');
+  } catch(e) {
+    statusEl.textContent = '❌ ' + (e.message || 'Importeren mislukt');
+    btn.disabled = false; btn.textContent = '✨ Importeer';
+  }
+}
+
+async function callAIExtract(pageText) {
+  const s = state.settings;
+  if (!s.anthropicApiKey) throw new Error('Geen API sleutel ingesteld');
+
+  const prompt = `Je bent een Nederlandse voedingsdeskundige. Extraheer het recept uit de volgende webpagina-tekst en geef het terug als één JSON object.
+
+Pagina-tekst:
+${pageText}
+
+Geef ALLEEN één geldig JSON object terug, geen uitleg of andere tekst:
+{
+  "name": "Naam van het gerecht",
+  "time": "25 min",
+  "type": "Vis",
+  "seasons": ["lente","zomer","herfst","winter"],
+  "nutrition": {"kcal": 500, "prot": 30, "carb": 45, "fat": 18},
+  "ingredients": ["2 zalmfilets", "150g quinoa"],
+  "steps": ["Stap 1.", "Stap 2."]
+}
+
+Regels:
+- Vertaal alles naar correct Nederlands
+- type moet "Vis", "Vlees" of "Vegetarisch" zijn
+- Maximaal 8 beknopte bereidingsstappen
+- Schat voedingswaarden als ze niet vermeld zijn
+- ingredients: genormaliseerd, 1 per item, voor 2 personen
+- Als er geen duidelijk recept op de pagina staat, gebruik dan name: "Onbekend recept"`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': s.anthropicApiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `API fout: ${res.status}`);
+  }
+
+  const data = await res.json();
+  const text = data.content?.[0]?.text || '';
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('Claude gaf geen geldig JSON terug');
+
+  const r = JSON.parse(match[0]);
+  return {
+    id: 'import_' + Date.now(),
+    name: String(r.name || 'Geïmporteerd recept'),
+    time: String(r.time || '30 min'),
+    type: ['Vis', 'Vlees', 'Vegetarisch'].includes(String(r.type)) ? String(r.type) : 'Vegetarisch',
+    seasons: Array.isArray(r.seasons) ? r.seasons : ['lente', 'zomer', 'herfst', 'winter'],
+    nutrition: {
+      kcal: Number(r.nutrition?.kcal) || 0,
+      prot: Number(r.nutrition?.prot) || 0,
+      carb: Number(r.nutrition?.carb) || 0,
+      fat:  Number(r.nutrition?.fat)  || 0,
+    },
+    ingredients: Array.isArray(r.ingredients) ? r.ingredients.map(String) : [],
+    steps: Array.isArray(r.steps) ? r.steps.map(String) : [],
+  };
+}
+
+function openEditorWithData(recipe) {
+  // Pre-fill as new recipe so it gets auto-favorited on save
+  state.editingRecipeId = null;
+  state._pendingImportId = recipe.id; // preserve import id
+
+  document.getElementById('editorModal').classList.add('open');
+  document.getElementById('editorSheet').innerHTML = `<div class="modal-header"><h2>Recept importeren</h2><button class="close-btn" onclick="closeEditor()">✕</button></div>
+<p style="font-size:12px;color:var(--text-lt);margin-bottom:16px;line-height:1.5">Controleer het geïmporteerde recept en pas het aan naar wens.</p>
+<div class="field-row">
+  <div class="field" style="flex:2"><label>Naam</label><input type="text" id="e-name" placeholder="Naam van het gerecht"></div>
+  <div class="field"><label>Tijd</label><input type="text" id="e-time" placeholder="25 min"></div>
+</div>
+<div class="field-row">
+  <div class="field"><label>Type</label>
+    <select id="e-type"><option value="Vis">🐟 Vis</option><option value="Vlees">🍗 Vlees</option><option value="Vegetarisch">🥗 Vegetarisch</option></select>
+  </div>
+</div>
+<div class="field-row">
+  <div class="field"><label>Calorieën</label><input type="number" id="e-kcal" placeholder="500"></div>
+  <div class="field"><label>Eiwit (g)</label><input type="number" id="e-prot" placeholder="30"></div>
+  <div class="field"><label>Koolh. (g)</label><input type="number" id="e-carb" placeholder="45"></div>
+  <div class="field"><label>Vet (g)</label><input type="number" id="e-fat" placeholder="18"></div>
+</div>
+<div class="field"><label>Ingrediënten (voor 2 personen, 1 per regel)</label>
+  <textarea id="e-ingredients" rows="6" placeholder="2 zalmfilets&#10;150g quinoa&#10;..."></textarea>
+</div>
+<div class="field"><label>Bereidingsstappen (1 per regel)</label>
+  <textarea id="e-steps" rows="6" placeholder="Verwarm de oven op 180°C.&#10;..."></textarea>
+</div>
+<div style="display:flex;gap:10px;margin-top:4px">
+  <button class="btn btn-primary btn-lg" style="flex:1" onclick="saveRecipe()">💾 Opslaan & toevoegen aan favorieten</button>
+</div>`;
+
+  document.getElementById('e-name').value = recipe.name || '';
+  document.getElementById('e-time').value = recipe.time || '';
+  document.getElementById('e-type').value = recipe.type || 'Vegetarisch';
+  document.getElementById('e-kcal').value = recipe.nutrition?.kcal || '';
+  document.getElementById('e-prot').value = recipe.nutrition?.prot || '';
+  document.getElementById('e-carb').value = recipe.nutrition?.carb || '';
+  document.getElementById('e-fat').value = recipe.nutrition?.fat || '';
+  document.getElementById('e-ingredients').value = (recipe.ingredients || []).join('\n');
+  document.getElementById('e-steps').value = (recipe.steps || []).join('\n');
+}
+
 // ─── LOCAL STORAGE FALLBACK ───────────────────────────────────────
 const LS_KEY = 'menuplanner_state';
 function saveLocal() {
@@ -1038,7 +1231,7 @@ function renderFavorites() {
     grid.innerHTML = `<div class="empty-state"><div class="empty-icon">⭐</div><p>Nog geen favorieten.<br>Geef een duimpje omhoog!</p></div>`;
     return;
   }
-  grid.innerHTML = state.favorites.map(r => recipeCard(r, {showAdd:true})).join('');
+  grid.innerHTML = state.favorites.map(r => recipeCard(r, {showAdd:true, showEdit:true})).join('');
 }
 
 // ─── DAY PAGES ────────────────────────────────────────────────────
@@ -1511,8 +1704,16 @@ else state.extraRecipes.push(recipe);
 // Also update in week if present
 const wIdx = state.weekRecipes.findIndex(r => r.id === state.editingRecipeId);
 if (wIdx >= 0) state.weekRecipes[wIdx] = {...recipe, dayIndex: state.weekRecipes[wIdx].dayIndex};
+// Also update in favorites if present
+const fIdx = state.favorites.findIndex(r => r.id === state.editingRecipeId);
+if (fIdx >= 0) state.favorites[fIdx] = recipe;
 } else {
 state.extraRecipes.push(recipe);
+// Auto-add new recipes to favorites
+if (!state.favorites.find(r => r.id === recipe.id)) {
+  state.favorites.push(recipe);
+}
+state._pendingImportId = null;
 }
 
 closeEditor();
